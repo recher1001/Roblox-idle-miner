@@ -17,6 +17,8 @@ local SessionService = require(Services.SessionService)
 local NetService = require(Services.NetService)
 local PlotService = require(Services.PlotService)
 local MineService = require(Services.MineService)
+local UpgradeService = require(Services.UpgradeService)
+local ManagerService = require(Services.ManagerService)
 
 Net.setupServer()
 WorldSetup.applyLighting()
@@ -24,6 +26,8 @@ WorldSetup.applyLighting()
 DataService.start()
 PlotService.start()
 MineService.start()
+UpgradeService.start()
+ManagerService.start()
 NetService.start()
 
 -- SessionService zuletzt: erst dann kommen Spieler-Sessions herein
