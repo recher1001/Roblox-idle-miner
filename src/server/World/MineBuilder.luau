@@ -232,9 +232,11 @@ local function buildFigure(name: string, cf: CFrame, shirt: Color3, hat: Color3,
 	if custom then
 		custom.Name = name
 		custom:PivotTo(cf)
+		custom:SetAttribute("FloorCFrame", cf)
 		return custom
 	end
 	local m = model(name)
+	m:SetAttribute("FloorCFrame", cf)
 	local legs = P({
 		Name = "Legs",
 		Size = Vector3.new(1.6, 1.8, 0.9),
@@ -650,15 +652,8 @@ local function buildLevel(mine: Instance, origin: CFrame, i: number): Model
 	local miners = folder("Miners", m)
 	miners:SetAttribute("Count", 0)
 
-	-- Manager-Platz
-	local managerFigure = buildFigure(
-		"Manager",
-		origin * CFrame.new(3, y, PIT_BACK_Z + 9) * CFrame.Angles(0, math.rad(200), 0),
-		COLORS.Shirt,
-		Color3.fromRGB(40, 40, 46),
-		false
-	)
-	managerFigure.Parent = m
+	-- Manager-Platz (Figur wird erst bei Zuweisung gebaut)
+	m:SetAttribute("ManagerSpot", origin * CFrame.new(3, y + 0.2, PIT_BACK_Z + 9) * CFrame.Angles(0, math.rad(200), 0))
 
 	-- Klickfläche (unsichtbar, ganze Ebene)
 	local hit = box(
@@ -689,19 +684,29 @@ local function buildLevel(mine: Instance, origin: CFrame, i: number): Model
 	return m
 end
 
---- Setzt die Anzahl der Kumpel auf einer Ebene
-function MineBuilder.setMinerCount(level: Model, origin: CFrame, index: number, count: number)
+--- Setzt die Kumpel einer Ebene. signature beschreibt den gewünschten Zustand
+--- (Anzahl + Avatar-IDs). Gibt die neu gebauten Figuren zurück (oder nil, wenn
+--- sich nichts geändert hat), damit sie danach mit Avataren eingekleidet werden.
+function MineBuilder.setMinerCount(
+	level: Model,
+	origin: CFrame,
+	index: number,
+	count: number,
+	signature: string
+): { Model }?
 	local miners = level:FindFirstChild("Miners")
 	if not miners then
-		return
+		return nil
 	end
-	if miners:GetAttribute("Count") == count then
-		return
+	if miners:GetAttribute("Signature") == signature then
+		return nil
 	end
 	miners:ClearAllChildren()
 	miners:SetAttribute("Count", count)
+	miners:SetAttribute("Signature", signature)
 	local y = levelY(index)
 	local spacing = (PIT_MAX_X - 8) / math.max(count, 1)
+	local created = {}
 	for n = 1, count do
 		local x = 8 + spacing * (n - 0.5)
 		local figure = buildFigure(
@@ -712,7 +717,9 @@ function MineBuilder.setMinerCount(level: Model, origin: CFrame, index: number, 
 			true
 		)
 		figure.Parent = miners
+		table.insert(created, figure)
 	end
+	return created
 end
 
 local function buildLockedLevel(mine: Instance, origin: CFrame, i: number): Model
@@ -956,14 +963,10 @@ local function buildElevator(mine: Instance, origin: CFrame): Model
 	dome.CanQuery = false
 
 	-- Manager-Platz neben dem Depot
-	local managerFigure = buildFigure(
-		"Manager",
-		origin * CFrame.new(L.ElevatorX - 6, 0, L.ElevatorZ + 6) * CFrame.Angles(0, math.rad(160), 0),
-		COLORS.Shirt,
-		Color3.fromRGB(40, 40, 46),
-		false
+	m:SetAttribute(
+		"ManagerSpot",
+		origin * CFrame.new(L.ElevatorX - 7, 0, L.ElevatorZ + 8) * CFrame.Angles(0, math.rad(160), 0)
 	)
-	managerFigure.Parent = m
 
 	-- Klickfläche: Aufzugsturm
 	local hit = P({
@@ -1195,14 +1198,10 @@ local function buildWarehouse(mine: Instance, origin: CFrame): Model
 	m:SetAttribute("CartFrom", railStart)
 	m:SetAttribute("CartTo", railEnd)
 
-	local managerFigure = buildFigure(
-		"Manager",
-		origin * CFrame.new(L.WarehouseDoor + Vector3.new(1, 0, 6)) * CFrame.Angles(0, math.rad(200), 0),
-		COLORS.Shirt,
-		Color3.fromRGB(40, 40, 46),
-		false
+	m:SetAttribute(
+		"ManagerSpot",
+		origin * CFrame.new(L.WarehouseDoor + Vector3.new(1, 0, 6)) * CFrame.Angles(0, math.rad(200), 0)
 	)
-	managerFigure.Parent = m
 
 	local hit = P({
 		Name = "Hitbox",
@@ -1290,32 +1289,165 @@ function MineBuilder.clearMine(plot: Model)
 	end
 end
 
---- Färbt/zeigt eine Manager-Figur
-function MineBuilder.setManagerFigure(station: Model, color: Color3?, abilityActive: boolean)
+--- Baut/entfernt die Manager-Figur einer Station. signature beschreibt den
+--- gewünschten Manager ("" = keiner). Gibt eine neu gebaute Figur zurück, damit
+--- sie mit dem Avatar eines Freundes eingekleidet werden kann.
+function MineBuilder.setManagerFigure(station: Model, color: Color3?, abilityActive: boolean, signature: string): Model?
+	local created: Model? = nil
+	if station:GetAttribute("ManagerSig") ~= signature then
+		station:SetAttribute("ManagerSig", signature)
+		local old = station:FindFirstChild("Manager")
+		if old then
+			old:Destroy()
+		end
+		local spot = station:GetAttribute("ManagerSpot")
+		if color and typeof(spot) == "CFrame" then
+			local figure = buildFigure("Manager", spot, color, color, false)
+			for _, d in figure:GetDescendants() do
+				if d:IsA("BasePart") and d:GetAttribute("RarityColor") then
+					d.Color = color
+				end
+			end
+			figure.Parent = station
+			created = figure
+		end
+	end
 	local figure = station:FindFirstChild("Manager")
 	if not figure then
-		return
-	end
-	for _, d in figure:GetDescendants() do
-		if d:IsA("BasePart") then
-			d.Transparency = if color then 0 else 1
-			if color and d:GetAttribute("RarityColor") then
-				d.Color = color
-			end
-		end
+		return created
 	end
 	local sparkle = figure:FindFirstChild("AbilitySparkle", true)
 	if abilityActive and color and not sparkle then
-		local body = figure:FindFirstChild("Body", true) or figure:FindFirstChildWhichIsA("BasePart", true)
+		local body = figure:FindFirstChild("UpperTorso", true)
+			or figure:FindFirstChild("Body", true)
+			or figure:FindFirstChildWhichIsA("BasePart", true)
 		if body and body:IsA("BasePart") then
 			local s = Instance.new("Sparkles")
 			s.Name = "AbilitySparkle"
 			s.SparkleColor = color
 			s.Parent = body
 		end
-	elseif (not abilityActive or not color) and sparkle then
+	elseif not abilityActive and sparkle then
 		sparkle:Destroy()
 	end
+	return created
+end
+
+----------------------------------------------------------------------
+-- Avatare (Roblox-Avatare von Freunden mit Bauarbeiterhelm)
+----------------------------------------------------------------------
+local function weldTo(part: BasePart, target: BasePart)
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = target
+	weld.Part1 = part
+	weld.Parent = part
+end
+
+local function addHardHat(head: BasePart, color: Color3, parent: Instance)
+	local top = head.CFrame * CFrame.new(0, head.Size.Y * 0.42, 0)
+	local dome = P({
+		Name = "HardHat",
+		Size = Vector3.new(1.45, 1.45, 1.45),
+		CFrame = top * CFrame.new(0, 0.18, 0),
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		Shape = Enum.PartType.Ball,
+		CanCollide = false,
+		Parent = parent,
+	})
+	local brim = P({
+		Name = "HardHatBrim",
+		Size = Vector3.new(0.12, 1.75, 1.75),
+		CFrame = top * CFrame.new(0, -0.08, -0.12) * CFrame.Angles(0, 0, math.pi / 2),
+		Color = color,
+		Material = Enum.Material.SmoothPlastic,
+		Shape = Enum.PartType.Cylinder,
+		CanCollide = false,
+		Parent = parent,
+	})
+	local lamp = P({
+		Name = "HatLamp",
+		Size = Vector3.new(0.32, 0.32, 0.18),
+		CFrame = top * CFrame.new(0, 0.25, -0.68),
+		Color = COLORS.Lamp,
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = parent,
+	})
+	for _, p in { dome, brim, lamp } do
+		p.Anchored = false
+		p.Massless = true
+		p.CanQuery = false
+		weldTo(p, head)
+	end
+end
+
+local function addPickaxe(hand: BasePart, parent: Instance)
+	local grip = hand.CFrame * CFrame.new(0, -0.15, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+	local handle = P({
+		Name = "PickHandle",
+		Size = Vector3.new(0.22, 0.22, 2.8),
+		CFrame = grip * CFrame.new(0, 0, -1.1),
+		Color = COLORS.Wood,
+		CanCollide = false,
+		Parent = parent,
+	})
+	local head = P({
+		Name = "PickHead",
+		Size = Vector3.new(0.28, 1.7, 0.32),
+		CFrame = grip * CFrame.new(0, 0, -2.4),
+		Color = COLORS.Metal,
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = parent,
+	})
+	for _, p in { handle, head } do
+		p.Anchored = false
+		p.Massless = true
+		p.CanQuery = false
+		weldTo(p, hand)
+	end
+end
+
+--- Ersetzt eine Platzhalter-Figur durch einen Avatar (Klon eines Templates).
+--- Gibt die neue Figur zurück.
+function MineBuilder.replaceWithAvatar(figure: Model, template: Model, hatColor: Color3, withPickaxe: boolean): Model?
+	local floor = figure:GetAttribute("FloorCFrame")
+	if typeof(floor) ~= "CFrame" or not figure.Parent then
+		return nil
+	end
+	local avatar = template:Clone()
+	avatar.Name = figure.Name
+	local humanoid = avatar:FindFirstChildOfClass("Humanoid")
+	local root = avatar:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not root or not root:IsA("BasePart") then
+		avatar:Destroy()
+		return nil
+	end
+	avatar.PrimaryPart = root
+	local height = humanoid.HipHeight + root.Size.Y / 2
+	avatar:PivotTo(floor * CFrame.new(0, height, 0))
+	-- Hüte entfernen (der Bauarbeiterhelm kommt drauf), Haare bleiben
+	for _, acc in avatar:GetChildren() do
+		if acc:IsA("Accessory") and acc.AccessoryType == Enum.AccessoryType.Hat then
+			acc:Destroy()
+		end
+	end
+	local head = avatar:FindFirstChild("Head")
+	if head and head:IsA("BasePart") then
+		addHardHat(head, hatColor, avatar)
+	end
+	if withPickaxe then
+		local hand = avatar:FindFirstChild("RightHand")
+		if hand and hand:IsA("BasePart") then
+			addPickaxe(hand, avatar)
+		end
+	end
+	avatar:SetAttribute("FloorCFrame", floor)
+	avatar:SetAttribute("IsAvatar", true)
+	avatar.Parent = figure.Parent
+	figure:Destroy()
+	return avatar
 end
 
 return MineBuilder

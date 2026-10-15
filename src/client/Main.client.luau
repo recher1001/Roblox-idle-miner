@@ -26,6 +26,7 @@ local DailyPanel = require(Panels.DailyPanel)
 local Controllers = Client.Controllers
 local CameraController = require(Controllers.CameraController)
 local Effects = require(Controllers.Effects)
+local MineVisuals = require(Controllers.MineVisuals)
 local StationBadges = require(Controllers.StationBadges)
 
 ClientState.start()
@@ -41,6 +42,7 @@ DailyPanel.start()
 Effects.start()
 StationBadges.start()
 CameraController.start()
+MineVisuals.start()
 
 -- Falls der erste Sync vor dem Verbinden kam: Zustand neu anfordern
 task.spawn(function()

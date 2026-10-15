@@ -76,7 +76,7 @@ function Root.start()
 		end
 		local s = math.min(vp.X / Theme.ReferenceSize.X, vp.Y / Theme.ReferenceSize.Y)
 		if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
-			s *= 1.25 -- größere Touch-Ziele auf Handys
+			s *= 1.15 -- größere Touch-Ziele auf Handys
 		end
 		s = math.clamp(s, 0.45, 1.6)
 		Root.Scale = s

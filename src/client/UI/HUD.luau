@@ -249,14 +249,21 @@ local function notificationDot(button: Components.Button): Frame
 end
 
 local function buildSidebar(parent: Frame, onCamera: () -> ())
+	-- 2x3-Raster: kompakt, damit es auf Handys nicht mit dem Joystick kollidiert
 	local side: Frame = Util.new("Frame", {
 		Name = "Sidebar",
-		Size = UDim2.fromOffset(110, 600),
-		Position = UDim2.new(0, 14, 0.5, 20),
+		Size = UDim2.fromOffset(204, 290),
+		Position = UDim2.new(0, 14, 0.5, -10),
 		AnchorPoint = Vector2.new(0, 0.5),
 		BackgroundTransparency = 1,
 		Parent = parent,
-	}, { Util.list(Enum.FillDirection.Vertical, 10) })
+	}, {
+		Util.new("UIGridLayout", {
+			CellSize = UDim2.fromOffset(96, 86),
+			CellPadding = UDim2.fromOffset(10, 10),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+	})
 
 	menuButton(side, 1, "⬆️", "Upgrades", Theme.Colors.Gold, function()
 		PanelManager.toggle("Upgrades")

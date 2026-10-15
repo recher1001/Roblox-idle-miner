@@ -22,6 +22,7 @@ local Formulas = require(Shared.Formulas)
 local Maid = require(Shared.Maid)
 local Types = require(Shared.Types)
 
+local AvatarService = require(script.Parent.AvatarService)
 local SessionService = require(script.Parent.SessionService)
 local MineBuilder = require(script.Parent.Parent.World.MineBuilder)
 local WorldSetup = require(script.Parent.Parent.World.WorldSetup)
@@ -268,7 +269,13 @@ end
 local function managerVisual(session: Session, station: Model, key: string, now: number)
 	local manager = Formulas.managerFor(session.Data, key)
 	local color = if manager then Formulas.rarityDef(manager.Rarity).Color else nil
-	MineBuilder.setManagerFigure(station, color, Formulas.isAbilityActive(manager, now))
+	local signature = if manager
+		then string.format("%s:%s:%d", manager.Id, manager.Rarity, manager.FriendUserId or 0)
+		else ""
+	local created = MineBuilder.setManagerFigure(station, color, Formulas.isAbilityActive(manager, now), signature)
+	if created and manager and manager.FriendUserId and color then
+		AvatarService.dress(created, manager.FriendUserId, color, false)
+	end
 	station:SetAttribute("HasManager", manager ~= nil)
 end
 
@@ -313,7 +320,17 @@ function PlotService.updateVisuals(session: Session)
 				local ratio = if BigNum.isZero(cap) then 0 else BigNum.toNumber(BigNum.div(stock, cap))
 				MineBuilder.setCrateFill(crate, ratio, def.OreColor)
 			end
-			MineBuilder.setMinerCount(station, plot.Origin, i, minerCount(data.Shafts[i]))
+			local count = minerCount(data.Shafts[i])
+			local ids = AvatarService.minerIds(session, i, count)
+			local signature = tostring(count) .. ":" .. table.concat(ids, ",")
+			local created = MineBuilder.setMinerCount(station, plot.Origin, i, count, signature)
+			if created then
+				for n, figure in created do
+					if ids[n] then
+						AvatarService.dress(figure, ids[n], Config.Avatars.MinerHatColor, true)
+					end
+				end
+			end
 			managerVisual(session, station, key, now)
 			station:SetAttribute("Full", full)
 		end

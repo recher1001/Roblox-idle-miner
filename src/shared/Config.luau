@@ -16,7 +16,7 @@ local Config = {}
 ----------------------------------------------------------------------
 -- Allgemein
 ----------------------------------------------------------------------
-Config.StartingCash = 25
+Config.StartingCash = 50
 Config.CurrencySymbol = "$"
 Config.MinCycleDuration = 0.6 -- kein Arbeitszyklus wird schneller als das
 
@@ -43,7 +43,7 @@ Config.Shafts = {
 		OreColor = Color3.fromRGB(45, 45, 50),
 		RockColor = Color3.fromRGB(96, 84, 74),
 		UnlockCost = 0,
-		BaseYield = 5,
+		BaseYield = 8,
 		BaseCycle = 4,
 	},
 	{
@@ -51,7 +51,7 @@ Config.Shafts = {
 		Ore = "Kupfer",
 		OreColor = Color3.fromRGB(214, 120, 64),
 		RockColor = Color3.fromRGB(104, 82, 70),
-		UnlockCost = 500,
+		UnlockCost = 300,
 		BaseYield = 60,
 		BaseCycle = 4.5,
 	},
@@ -69,7 +69,7 @@ Config.Shafts = {
 		Ore = "Silber",
 		OreColor = Color3.fromRGB(220, 228, 235),
 		RockColor = Color3.fromRGB(78, 82, 92),
-		UnlockCost = 100e3,
+		UnlockCost = 150e3,
 		BaseYield = 8e3,
 		BaseCycle = 5.5,
 	},
@@ -78,7 +78,7 @@ Config.Shafts = {
 		Ore = "Gold",
 		OreColor = Color3.fromRGB(255, 200, 40),
 		RockColor = Color3.fromRGB(98, 78, 58),
-		UnlockCost = 1.5e6,
+		UnlockCost = 4e6,
 		BaseYield = 95e3,
 		BaseCycle = 6,
 	},
@@ -87,7 +87,7 @@ Config.Shafts = {
 		Ore = "Smaragd",
 		OreColor = Color3.fromRGB(40, 210, 110),
 		RockColor = Color3.fromRGB(60, 78, 70),
-		UnlockCost = 25e6,
+		UnlockCost = 150e6,
 		BaseYield = 1.1e6,
 		BaseCycle = 6.5,
 	},
@@ -96,7 +96,7 @@ Config.Shafts = {
 		Ore = "Rubin",
 		OreColor = Color3.fromRGB(230, 40, 70),
 		RockColor = Color3.fromRGB(84, 58, 62),
-		UnlockCost = 400e6,
+		UnlockCost = 6e9,
 		BaseYield = 13e6,
 		BaseCycle = 7,
 	},
@@ -105,7 +105,7 @@ Config.Shafts = {
 		Ore = "Saphir",
 		OreColor = Color3.fromRGB(50, 110, 255),
 		RockColor = Color3.fromRGB(56, 62, 92),
-		UnlockCost = 7e9,
+		UnlockCost = 300e9,
 		BaseYield = 160e6,
 		BaseCycle = 7.5,
 	},
@@ -114,7 +114,7 @@ Config.Shafts = {
 		Ore = "Diamant",
 		OreColor = Color3.fromRGB(170, 245, 255),
 		RockColor = Color3.fromRGB(64, 72, 86),
-		UnlockCost = 120e9,
+		UnlockCost = 15e12,
 		BaseYield = 2e9,
 		BaseCycle = 8,
 	},
@@ -123,7 +123,7 @@ Config.Shafts = {
 		Ore = "Mythril",
 		OreColor = Color3.fromRGB(190, 90, 255),
 		RockColor = Color3.fromRGB(58, 44, 78),
-		UnlockCost = 2e12,
+		UnlockCost = 800e12,
 		BaseYield = 25e9,
 		BaseCycle = 8.5,
 	},
@@ -297,9 +297,9 @@ export type AbilityDef = {
 
 Config.Managers = {
 	HireBaseCost = {
-		Shaft = 100,
-		Elevator = 150,
-		Warehouse = 150,
+		Shaft = 50,
+		Elevator = 60,
+		Warehouse = 60,
 	} :: { [string]: number },
 	HireCostGrowth = 3.5, -- pro bereits eingestelltem Manager dieses Bereichs
 	MaxOwned = 30,
@@ -397,6 +397,20 @@ Config.Managers = {
 		"Paul",
 		"Mia",
 	},
+}
+
+----------------------------------------------------------------------
+-- Avatare: Kumpel und Manager tragen die Roblox-Avatare der Freunde
+-- des Spielers (mit Bauarbeiterhelm). Ohne Freunde: eigener Avatar,
+-- sonst die Block-Figur.
+----------------------------------------------------------------------
+Config.Avatars = {
+	Enabled = true,
+	UseFriends = true,
+	OwnAvatarFallback = true,
+	MaxFriends = 60, -- so viele Freunde werden geladen
+	MinerHatColor = Color3.fromRGB(255, 204, 40),
+	MaxAvatarsPerServer = 250, -- Schutz für die Performance
 }
 
 ----------------------------------------------------------------------

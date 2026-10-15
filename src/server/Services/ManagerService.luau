@@ -20,6 +20,7 @@ local Formulas = require(Shared.Formulas)
 local Net = require(Shared.Net)
 local Types = require(Shared.Types)
 
+local AvatarService = require(script.Parent.AvatarService)
 local NetService = require(script.Parent.NetService)
 local PlotService = require(script.Parent.PlotService)
 local SessionService = require(script.Parent.SessionService)
@@ -84,9 +85,12 @@ function ManagerService.hire(session: Session, area: string): (boolean, string?,
 	local rarity = rollRarity(session.Passes.LuckyManagers == true)
 	local abilities = Config.Managers.AbilitiesByArea[area]
 	local names = Config.Managers.Names
+	-- Manager bekommen den Avatar + Namen eines Freundes des Spielers
+	local friend = if Config.Avatars.Enabled then AvatarService.pickFriend(session) else nil
 	local manager: ManagerData = {
 		Id = "M" .. tostring(data.NextManagerId),
-		Name = names[rng:NextInteger(1, #names)],
+		Name = if friend then string.sub(friend.Name, 1, 24) else names[rng:NextInteger(1, #names)],
+		FriendUserId = if friend then friend.UserId else nil,
 		Area = area,
 		Rarity = rarity.Id,
 		Ability = abilities[rng:NextInteger(1, #abilities)],

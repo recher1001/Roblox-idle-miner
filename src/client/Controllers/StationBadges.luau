@@ -153,8 +153,20 @@ local function needsTap(key: string, station: Model): boolean
 	return false
 end
 
+--- Den "Stehlen"-Prompt am eigenen Aufzugslager lokal ausblenden
+local function hideOwnStealPrompt(plot: Model?)
+	if not plot then
+		return
+	end
+	local prompt = plot:FindFirstChild("StealPrompt", true)
+	if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
+		prompt.Enabled = false
+	end
+end
+
 local function sync()
 	local plot = PlotLocator.ownPlot()
+	hideOwnStealPrompt(plot)
 	local snap = ClientState.Snapshot
 	local wanted: { [string]: boolean } = {}
 	if plot and snap then

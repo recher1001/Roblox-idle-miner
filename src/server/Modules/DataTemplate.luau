@@ -150,6 +150,9 @@ local function sanitizeManagers(raw: any, data: PlayerData): { ManagerData }
 			table.insert(result, {
 				Id = m.Id,
 				Name = if type(m.Name) == "string" then string.sub(m.Name, 1, 24) else "Manager",
+				FriendUserId = if type(m.FriendUserId) == "number" and m.FriendUserId > 0
+					then math.floor(m.FriendUserId)
+					else nil,
 				Area = m.Area,
 				Rarity = m.Rarity,
 				Ability = m.Ability,
