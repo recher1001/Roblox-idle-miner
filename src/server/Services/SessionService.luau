@@ -34,6 +34,7 @@ export type Session = {
 	Profile: DataService.Profile,
 	Data: PlayerData,
 	Cycles: { [string]: CycleState },
+	Pending: { [string]: BigNum.BigNum }, -- Menge, die der laufende Zyklus bewegt
 	Maid: Maid.Maid,
 	JoinTime: number,
 	Passes: { [string]: boolean },
@@ -241,6 +242,7 @@ local function onPlayerAdded(player: Player)
 		Profile = profile,
 		Data = profile.Data,
 		Cycles = {},
+		Pending = {},
 		Maid = Maid.new(),
 		JoinTime = Clock.now(),
 		Passes = {},
