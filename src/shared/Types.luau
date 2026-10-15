@@ -23,6 +23,7 @@ export type ManagerData = {
 	Area: Area,
 	Rarity: string,
 	Ability: string,
+	FriendUserId: number?, -- Avatar eines Freundes (nil = Standardfigur)
 	AssignedTo: string?, -- StationKey ("Shaft:2", "Elevator", "Warehouse") oder nil
 	ActiveUntil: number, -- Server-Zeit (Epoch-Sekunden)
 	CooldownUntil: number,
