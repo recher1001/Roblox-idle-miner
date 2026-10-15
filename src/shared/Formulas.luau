@@ -208,6 +208,11 @@ function Formulas.isBoostActive(data: PlayerData, boostId: string, now: number):
 	return type(untilTime) == "number" and untilTime > now
 end
 
+--- Hat der Spieler eine Admin-Kraft?
+function Formulas.hasPower(data: PlayerData, powerId: string): boolean
+	return data.Powers ~= nil and data.Powers[powerId] == true
+end
+
 function Formulas.rebirthMultiplier(points: number): number
 	return 1 + points * Config.Rebirth.MultiplierPerPoint
 end
@@ -222,6 +227,9 @@ function Formulas.cashMultiplier(data: PlayerData, ctx: CalcContext): number
 		mult *= 2
 	end
 	mult *= ctx.EventCashMultiplier
+	if Formulas.hasPower(data, "GoldenTouch") then
+		mult *= Config.Admin.GoldenTouchMultiplier
+	end
 	return mult
 end
 
@@ -229,6 +237,9 @@ function Formulas.globalSpeedMultiplier(data: PlayerData, ctx: CalcContext): num
 	local mult = ctx.EventSpeedMultiplier
 	if Formulas.isBoostActive(data, "Speed", ctx.Now) then
 		mult *= 2
+	end
+	if Formulas.hasPower(data, "MineTurbo") then
+		mult *= Config.Admin.MineTurboMultiplier
 	end
 	return mult
 end

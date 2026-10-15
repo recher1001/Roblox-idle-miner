@@ -641,6 +641,53 @@ Config.Shop = {
 }
 
 ----------------------------------------------------------------------
+-- Admin-System
+--   Der Owner (du) hat IMMER alle Rechte, kann nicht entfernt und von
+--   Admins nicht negativ beeinflusst werden (nichts wegnehmen, kein Kick).
+--   Admins vergibt nur der Owner im Admin-Menü, inkl. einzelner Rechte.
+----------------------------------------------------------------------
+export type AdminPermissionDef = { Id: string, Name: string, Icon: string, Default: boolean }
+export type PowerDef = { Id: string, Name: string, Icon: string, Description: string }
+
+Config.Admin = {
+	OwnerName = "recher1001",
+	-- Optional, aber sicherer: deine Roblox-UserId (Zahl aus roblox.com/users/<ID>/profile).
+	-- Bei 0 wird die ID beim Serverstart automatisch über den Namen ermittelt.
+	OwnerUserId = 0,
+	-- In Roblox Studio ist jeder Test-Spieler Owner (zum Testen). false = nur echter Owner.
+	StudioEveryoneOwner = true,
+	StoreName = "IdleMiner_Admins_v1",
+	Permissions = {
+		{ Id = "Cash", Name = "Geld geben/nehmen", Icon = "💰", Default = true },
+		{ Id = "Gems", Name = "Gems geben/nehmen", Icon = "💎", Default = true },
+		{ Id = "Progress", Name = "Ebenen, Manager, Cooldowns", Icon = "🔓", Default = true },
+		{ Id = "Powers", Name = "Kräfte geben/nehmen", Icon = "⚡", Default = true },
+		{ Id = "Events", Name = "Events starten", Icon = "🔥", Default = false },
+		{ Id = "Kick", Name = "Spieler kicken", Icon = "👢", Default = false },
+		{ Id = "Reset", Name = "Spielstand zurücksetzen", Icon = "♻", Default = false },
+	} :: { AdminPermissionDef },
+	-- OP-Kräfte, die Admins vergeben/wegnehmen können (werden gespeichert)
+	Powers = {
+		{
+			Id = "Carpet",
+			Name = "Fliegender Teppich",
+			Icon = "🧞",
+			Description = "Fliegen! Leertaste/▲ hoch, Q/▼ runter",
+		},
+		{ Id = "Speed", Name = "Super-Speed", Icon = "⚡", Description = "Rennt 4x so schnell" },
+		{ Id = "Jump", Name = "Mega-Sprung", Icon = "🦘", Description = "Springt riesig hoch" },
+		{ Id = "Shield", Name = "Unbestehlbar", Icon = "🛡️", Description = "Niemand kann dich bestehlen" },
+		{ Id = "MineTurbo", Name = "Turbo-Mine", Icon = "🚀", Description = "Alle Arbeiter 3x schneller" },
+		{ Id = "GoldenTouch", Name = "Goldener Händler", Icon = "💰", Description = "3x Einkommen" },
+	} :: { PowerDef },
+	WalkSpeed = 64,
+	JumpPower = 125,
+	MineTurboMultiplier = 3,
+	GoldenTouchMultiplier = 3,
+	CarpetSpeed = 70,
+}
+
+----------------------------------------------------------------------
 -- Datenspeicherung
 ----------------------------------------------------------------------
 Config.Data = {
@@ -665,6 +712,9 @@ Config.RateLimits = {
 	Upgrade = { Rate = 10, Burst = 20 },
 	HireManager = { Rate = 2, Burst = 4 },
 	RequestSync = { Rate = 1, Burst = 3 },
+	AdminAction = { Rate = 8, Burst = 16 },
+	AdminInfo = { Rate = 4, Burst = 8 },
+	ToggleCarpet = { Rate = 2, Burst = 4 },
 } :: { [string]: { Rate: number, Burst: number } }
 
 ----------------------------------------------------------------------

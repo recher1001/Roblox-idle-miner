@@ -26,7 +26,7 @@ local ShopService = require(Services.ShopService)
 local StealService = require(Services.StealService)
 local RewardService = require(Services.RewardService)
 local EventService = require(Services.EventService)
-local DebugService = require(Services.DebugService)
+local AdminService = require(Services.AdminService)
 
 Net.setupServer()
 WorldSetup.applyLighting()
@@ -43,7 +43,7 @@ ShopService.start()
 StealService.start()
 RewardService.start()
 EventService.start()
-DebugService.start()
+AdminService.start()
 NetService.start()
 
 -- SessionService zuletzt: erst dann kommen Spieler-Sessions herein

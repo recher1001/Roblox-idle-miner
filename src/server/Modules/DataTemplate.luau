@@ -57,6 +57,7 @@ function DataTemplate.new(): PlayerData
 		LastDailyClaim = 0,
 		LockCooldownUntil = 0,
 		ReceiptIds = {},
+		Powers = {},
 		Stats = {
 			StealsDone = 0,
 			TimesRobbed = 0,
@@ -222,6 +223,14 @@ function DataTemplate.sanitize(raw: any): PlayerData
 		end
 		while #data.ReceiptIds > Config.Data.MaxReceiptHistory do
 			table.remove(data.ReceiptIds, 1)
+		end
+	end
+
+	if type(raw.Powers) == "table" then
+		for _, def in Config.Admin.Powers do
+			if raw.Powers[def.Id] == true then
+				data.Powers[def.Id] = true
+			end
 		end
 	end
 

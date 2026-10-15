@@ -44,6 +44,7 @@ export type Session = {
 	LastStealAt: number,
 	LastRobbedAt: number,
 	Ending: boolean,
+	Admin: Types.AdminInfo?, -- gesetzt vom AdminService
 }
 
 type Hook = { Priority: number, Fn: (Session) -> () }
@@ -190,6 +191,7 @@ local function buildSnapshot(session: Session): Types.Snapshot
 		Event = if event then { Id = event.Id, EndsAt = event.EndsAt } else nil,
 		PlotIndex = session.PlotIndex,
 		DailyAvailable = Formulas.dailyAvailable(session.Data, now),
+		Admin = session.Admin,
 	}
 end
 
@@ -252,6 +254,7 @@ local function onPlayerAdded(player: Player)
 		LastStealAt = 0,
 		LastRobbedAt = 0,
 		Ending = false,
+		Admin = nil,
 	}
 	sessions[player] = session
 	setupLeaderstats(session)

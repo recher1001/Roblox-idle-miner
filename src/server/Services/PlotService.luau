@@ -349,6 +349,7 @@ function PlotService.updateVisuals(session: Session)
 		local locked = session.LockedUntil > now
 		local protected = session.JoinTime + Config.Steal.NewPlayerProtection > now
 			or Formulas.isBoostActive(data, "Shield", now)
+			or Formulas.hasPower(data, "Shield")
 		setInfo(
 			elevator,
 			"DepotInfo",

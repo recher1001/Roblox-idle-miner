@@ -117,26 +117,30 @@ rojo build -o IdleMiner.rbxlx
    5. **⬆️ Upgrades** oder der gelbe **⬆**-Button neben einer Station → Level kaufen.
    6. **🎥 Ansicht** → seitliche Minenansicht. Scrollen mit Mausrad / Wischen / ▲▼.
 
-### Test-Menü (nur in Studio)
+### Admin-Menü (🛠 Admin, oben links)
 
-Unten links erscheint in Studio der Button **🛠 Test**. Er öffnet ein Menü mit:
+Das Admin-Menü ist **nur für den Owner und für Admins** sichtbar – auch im veröffentlichten Spiel.
+Der Owner ist `Config.Admin.OwnerName` (**recher1001**). Optional kannst du in
+`Config.Admin.OwnerUserId` deine Roblox-UserId eintragen (sicherer, falls du deinen Namen änderst).
+In Studio ist jeder Test-Spieler Owner (`Config.Admin.StudioEveryoneOwner`).
 
-| Button | Wirkung |
+| Reiter | Inhalt |
 |---|---|
-| +$1K / +$1M / +$1B / +$1T | Geld hinzufügen |
-| Geld x1000 | Aktuelles Geld vertausendfachen |
-| +100 💎 / +1000 💎 | Gems hinzufügen |
-| 🔓 Alle Ebenen | Alle 10 Ebenen gratis freischalten |
-| 👔 Manager überall | Jede Station bekommt gratis einen Manager (mit Reveal) |
-| ⏱ Cooldowns weg | Fähigkeiten, Schloss, Stehl-Cooldown und Neulingsschutz zurücksetzen |
-| 🔥 Goldrausch / ⚡ Arbeitsfieber | Server-Event sofort starten |
-| 🌙 Offline 2h | So tun, als wärst du 2 h offline gewesen (Popup, echt einsammelbar) |
-| 🎁 Daily neu | Tägliche Belohnung wieder verfügbar machen |
-| ♻ Alles zurücksetzen | Spielstand der Session zurücksetzen |
+| 🎯 Spieler | Ziel wählen (dich oder andere Spieler), Geld geben / x1000 / halbieren / auf 0, Gems geben / auf 0, alle Ebenen, Manager überall, Cooldowns weg, Daily neu, Offline-Test, Kicken, Spielstand zurücksetzen |
+| ⚡ Kräfte | OP-Kräfte geben oder wegnehmen: 🧞 Fliegender Teppich, ⚡ Super-Speed, 🦘 Mega-Sprung, 🛡️ Unbestehlbar, 🚀 Turbo-Mine (3x), 💰 Goldener Händler (3x Geld) |
+| 🌍 Server | Events (Goldrausch, Arbeitsfieber) für alle starten |
+| 👑 Admins | **nur Owner:** Spieler zum Admin machen/entfernen und pro Admin einzeln einstellen, was er darf |
 
-Im veröffentlichten Spiel ist das Menü unsichtbar und der Server lehnt die Befehle ab.
-Zusätzlich gibt es die Chat-Befehle `/cash 1e9`, `/gems 100`, `/event`, `/offline 3600`, `/reset`
-(der neue Roblox-Chat lässt „/“-Nachrichten aber nicht immer durch, das Menü funktioniert immer).
+Regeln (vom Server erzwungen):
+- Der Owner hat immer alle Rechte und kann **nicht** entfernt werden.
+- Admins können dem Owner nichts wegnehmen, ihn nicht kicken und nicht zurücksetzen.
+- Nur der Owner kann Admins ernennen und Rechte vergeben. Die Admin-Liste wird gespeichert
+  und gilt in allen Servern.
+- Kräfte werden im Spielstand gespeichert. Mit dem 🧞 Teppich fliegst du:
+  Laufen = Richtung, Leertaste/E bzw. ▲ = hoch, Q/Strg bzw. ▼ = runter.
+
+Chat-Befehle für Admins (wenn der Chat sie durchlässt): `/cash 1e9`, `/gems 100`, `/unlockall`,
+`/managers`, `/cooldowns`, `/event`.
 
 ### Mehrspieler testen (Stehlen, Abschließen)
 
@@ -195,14 +199,14 @@ src/
 │     ├─ StealService       Stehlen, Bewachen, Basis abschließen
 │     ├─ RewardService      Tägliche Belohnung, Spielzeit-Gems
 │     ├─ EventService       Server-Events
-│     └─ DebugService       Test-Befehle (nur Studio)
+│     └─ AdminService       Owner/Admins, Rechte, OP-Kräfte, fliegender Teppich
 └─ client/                  → StarterPlayerScripts.Client
    ├─ Main.client.luau      Baut UI + startet Controller
    ├─ ClientState / Remote / PlotLocator
    ├─ UI/                   Theme, Util, Components, Root, HUD, PanelManager,
    │  │                     Popups, Toasts, FloatingText
-   │  └─ Panels/            Upgrades, Managers, Rebirth, Shop, Daily
-   └─ Controllers/          Effects, MineVisuals, StationBadges, CameraController, Sounds
+   │  └─ Panels/            Upgrades, Managers, Rebirth, Shop, Daily, Admin
+   └─ Controllers/          Effects, MineVisuals, StationBadges, CameraController, CarpetController, Sounds
 ```
 
 ---

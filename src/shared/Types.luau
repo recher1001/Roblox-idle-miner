@@ -51,6 +51,7 @@ export type PlayerData = {
 	LastDailyClaim: number,
 	LockCooldownUntil: number,
 	ReceiptIds: { string },
+	Powers: { [string]: boolean }, -- Admin-Kräfte (Teppich, Speed ...)
 	Stats: {
 		StealsDone: number,
 		TimesRobbed: number,
@@ -65,6 +66,14 @@ export type CycleState = {
 	Id: number,
 }
 
+-- Admin-Infos für den Client (nil = kein Admin)
+export type AdminEntry = { UserId: number, Name: string, Permissions: { [string]: boolean } }
+export type AdminInfo = {
+	IsOwner: boolean,
+	Permissions: { [string]: boolean },
+	Admins: { AdminEntry }?, -- nur für den Owner
+}
+
 -- Was der Client vom Server bekommt
 export type Snapshot = {
 	Data: PlayerData,
@@ -75,6 +84,7 @@ export type Snapshot = {
 	Event: { Id: string, EndsAt: number }?,
 	PlotIndex: number,
 	DailyAvailable: boolean,
+	Admin: AdminInfo?,
 }
 
 -- Kontext für Berechnungen (Boosts, Gamepasses, Events)

@@ -50,7 +50,7 @@ local function protectionReason(victim: Session, now: number): string?
 	if victim.JoinTime + CFG.NewPlayerProtection > now then
 		return "Dieser Spieler hat noch Neulingsschutz 🐣"
 	end
-	if Formulas.isBoostActive(victim.Data, "Shield", now) then
+	if Formulas.isBoostActive(victim.Data, "Shield", now) or Formulas.hasPower(victim.Data, "Shield") then
 		return "Dieses Lager ist durch ein Schild geschützt 🛡️"
 	end
 	return nil
