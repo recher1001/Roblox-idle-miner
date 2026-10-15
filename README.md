@@ -117,17 +117,26 @@ rojo build -o IdleMiner.rbxlx
    5. **⬆️ Upgrades** oder der gelbe **⬆**-Button neben einer Station → Level kaufen.
    6. **🎥 Ansicht** → seitliche Minenansicht. Scrollen mit Mausrad / Wischen / ▲▼.
 
-### Test-Befehle (nur in Studio, im Chat eingeben)
+### Test-Menü (nur in Studio)
 
-| Befehl | Wirkung |
+Unten links erscheint in Studio der Button **🛠 Test**. Er öffnet ein Menü mit:
+
+| Button | Wirkung |
 |---|---|
-| `/cash 1e9` | Geld hinzufügen |
-| `/gems 500` | Gems hinzufügen |
-| `/event` | Server-Event sofort starten (`/event GoldRush` oder `/event Frenzy`) |
-| `/offline 7200` | Offline-Popup für 2 Stunden simulieren (nur Anzeige) |
-| `/reset` | Spielstand der Session zurücksetzen |
+| +$1K / +$1M / +$1B / +$1T | Geld hinzufügen |
+| Geld x1000 | Aktuelles Geld vertausendfachen |
+| +100 💎 / +1000 💎 | Gems hinzufügen |
+| 🔓 Alle Ebenen | Alle 10 Ebenen gratis freischalten |
+| 👔 Manager überall | Jede Station bekommt gratis einen Manager (mit Reveal) |
+| ⏱ Cooldowns weg | Fähigkeiten, Schloss, Stehl-Cooldown und Neulingsschutz zurücksetzen |
+| 🔥 Goldrausch / ⚡ Arbeitsfieber | Server-Event sofort starten |
+| 🌙 Offline 2h | So tun, als wärst du 2 h offline gewesen (Popup, echt einsammelbar) |
+| 🎁 Daily neu | Tägliche Belohnung wieder verfügbar machen |
+| ♻ Alles zurücksetzen | Spielstand der Session zurücksetzen |
 
-Damit testest du z. B. Rebirth: `/cash 1e7` → Upgrades kaufen → **⭐ Rebirth**.
+Im veröffentlichten Spiel ist das Menü unsichtbar und der Server lehnt die Befehle ab.
+Zusätzlich gibt es die Chat-Befehle `/cash 1e9`, `/gems 100`, `/event`, `/offline 3600`, `/reset`
+(der neue Roblox-Chat lässt „/“-Nachrichten aber nicht immer durch, das Menü funktioniert immer).
 
 ### Mehrspieler testen (Stehlen, Abschließen)
 

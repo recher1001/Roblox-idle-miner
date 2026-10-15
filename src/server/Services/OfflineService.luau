@@ -89,6 +89,18 @@ local function onStart(session: Session)
 	end)
 end
 
+--- Nur für Tests: tut so, als wäre der Spieler X Sekunden offline gewesen
+--- (Popup erscheint und kann wirklich eingesammelt werden)
+function OfflineService.simulate(session: Session, elapsed: number)
+	local amount, seconds, capped = OfflineService.compute(session, elapsed)
+	if BigNum.isZero(amount) then
+		SessionService.notify(session.Player, "Offline verdienen nur Stationen MIT Manager!", "warn")
+		return
+	end
+	pending[session] = { Amount = amount, Seconds = seconds }
+	Net.event("OfflineEarnings"):FireClient(session.Player, { Amount = amount, Seconds = seconds, Capped = capped })
+end
+
 function OfflineService.start()
 	SessionService.onStart(30, onStart)
 	-- Nicht eingesammelt? Beim Verlassen automatisch gutschreiben (vor dem Speichern)

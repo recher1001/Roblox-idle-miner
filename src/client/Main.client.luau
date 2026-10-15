@@ -22,6 +22,7 @@ local ManagersPanel = require(Panels.ManagersPanel)
 local RebirthPanel = require(Panels.RebirthPanel)
 local ShopPanel = require(Panels.ShopPanel)
 local DailyPanel = require(Panels.DailyPanel)
+local DebugPanel = require(Panels.DebugPanel)
 
 local Controllers = Client.Controllers
 local CameraController = require(Controllers.CameraController)
@@ -38,6 +39,7 @@ ManagersPanel.start()
 RebirthPanel.start()
 ShopPanel.start()
 DailyPanel.start()
+DebugPanel.start() -- nur in Studio sichtbar
 
 Effects.start()
 StationBadges.start()
