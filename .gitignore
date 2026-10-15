@@ -1,0 +1,11 @@
+# Rojo / Build
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+sourcemap.json
+
+# selene erzeugt diese Datei lokal (selene generate-roblox-std)
+roblox.yml
+
+.DS_Store
