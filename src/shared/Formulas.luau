@@ -541,6 +541,19 @@ function Formulas.dailyReward(streakDay: number): Config.DailyReward
 	return rewards[idx]
 end
 
+--- Tägliche Belohnung verfügbar? (neuer UTC-Kalendertag seit dem letzten Abholen)
+function Formulas.dailyAvailable(data: PlayerData, now: number): boolean
+	return math.floor(now / 86400) > math.floor(data.LastDailyClaim / 86400)
+end
+
+--- Welcher Tag der Serie wäre die nächste Abholung? (Serie bricht nach StreakResetHours)
+function Formulas.nextDailyStreak(data: PlayerData, now: number): number
+	if data.LastDailyClaim <= 0 or now - data.LastDailyClaim > Config.Daily.StreakResetHours * 3600 then
+		return 1
+	end
+	return data.DailyStreak + 1
+end
+
 --- Formatiert Sekunden als "1h 23m" / "4m 05s" / "12s"
 function Formulas.formatDuration(seconds: number): string
 	seconds = math.max(0, math.floor(seconds))
