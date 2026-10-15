@@ -508,6 +508,14 @@ Config.Steal = {
 }
 
 ----------------------------------------------------------------------
+-- Sprinten (Shift oder Strg halten, auf dem Handy Sprint-Button)
+----------------------------------------------------------------------
+Config.Sprint = {
+	Multiplier = 1.7, -- Laufgeschwindigkeit x
+	FovBoost = 10, -- Sichtfeld wird beim Sprinten etwas weiter (Tempo-Gefühl)
+}
+
+----------------------------------------------------------------------
 -- Gems & Belohnungen
 ----------------------------------------------------------------------
 Config.Gems = {

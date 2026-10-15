@@ -115,7 +115,8 @@ rojo build -o IdleMiner.rbxlx
    3. Tippe den **Händler** an → der Wagen verkauft das Erz → **+$** fliegt hoch.
    4. **👔 Manager** → einen Manager einstellen → Reveal-Animation → die Station läuft jetzt automatisch.
    5. **⬆️ Upgrades** oder der gelbe **⬆**-Button neben einer Station → Level kaufen.
-   6. **🎥 2D-MINENANSICHT** (großer Button unten in der Mitte) → seitliche Minenansicht.
+   6. **Sprinten:** Shift oder Strg gedrückt halten (Handy: Button „🏃 Sprint“).
+   7. **🎥 2D-MINENANSICHT** (großer Button unten in der Mitte) → seitliche Minenansicht.
       Scrollen mit Mausrad / Wischen / ▲▼, Abschnitt wechseln mit ◀ ▶.
 
 ### Admin-Menü (🛠 Admin, oben links)

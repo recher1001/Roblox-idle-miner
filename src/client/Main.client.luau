@@ -27,6 +27,7 @@ local AdminPanel = require(Panels.AdminPanel)
 local Controllers = Client.Controllers
 local CameraController = require(Controllers.CameraController)
 local CarpetController = require(Controllers.CarpetController)
+local SprintController = require(Controllers.SprintController)
 local Effects = require(Controllers.Effects)
 local MineVisuals = require(Controllers.MineVisuals)
 local StationBadges = require(Controllers.StationBadges)
@@ -46,6 +47,7 @@ Effects.start()
 StationBadges.start()
 CameraController.start()
 CarpetController.start()
+SprintController.start()
 MineVisuals.start()
 
 -- Falls der erste Sync vor dem Verbinden kam: Zustand neu anfordern
