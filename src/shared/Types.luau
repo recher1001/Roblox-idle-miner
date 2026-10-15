@@ -76,8 +76,7 @@ export type AdminInfo = {
 
 -- Was der Client vom Server bekommt
 export type Snapshot = {
-	Data: PlayerData,
-	Cycles: { [string]: CycleState },
+	Data: PlayerData, -- Shafts/Managers fehlen, wenn unverändert (Client ergänzt sie)
 	Passes: { [string]: boolean },
 	ProtectedUntil: number,
 	LockedUntil: number,
@@ -85,6 +84,8 @@ export type Snapshot = {
 	PlotIndex: number,
 	DailyAvailable: boolean,
 	Admin: AdminInfo?,
+	Section: number, -- angezeigter Abschnitt der Grube
+	ShaftStockAny: boolean, -- liegt irgendwo Erz in den Schachtlagern?
 }
 
 -- Kontext für Berechnungen (Boosts, Gamepasses, Events)

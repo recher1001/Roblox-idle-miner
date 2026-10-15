@@ -92,9 +92,20 @@ function PanelManager.open(name: string, arg: any?)
 	local root = entry.Window.Root
 	root.Visible = true
 	root.GroupTransparency = 1
-	entry.Window.Scale.Scale = 0.85
+	-- Fenster immer komplett auf den Bildschirm passen lassen (kleine Handys)
+	local fit = 1
+	local layer = Root.layer("Modal")
+	local scale = math.max(Root.Scale, 0.01)
+	local availX = layer.AbsoluteSize.X / scale
+	local availY = layer.AbsoluteSize.Y / scale
+	local w = root.Size.X.Offset
+	local h = root.Size.Y.Offset
+	if availX > 0 and availY > 0 and w > 0 and h > 0 then
+		fit = math.min(1, (availX - 24) / w, (availY - 24) / h)
+	end
+	entry.Window.Scale.Scale = fit * 0.85
 	Util.tween(root, 0.22, { GroupTransparency = 0 })
-	Util.tween(entry.Window.Scale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	Util.tween(entry.Window.Scale, 0.35, { Scale = fit }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	if entry.OnOpen then
 		entry.OnOpen(arg)
 	end

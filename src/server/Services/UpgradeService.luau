@@ -44,6 +44,9 @@ function UpgradeService.upgrade(session: Session, key: string, trackId: string, 
 		return false, "Nicht genug Geld"
 	end
 	station.Levels[trackId] = Formulas.level(station, trackId) + quote.Levels
+	if area == "Shaft" then
+		SessionService.shaftsChanged(session)
+	end
 	SessionService.effect(session.Player, "Purchase", {
 		Key = key,
 		Track = trackId,
@@ -57,15 +60,17 @@ end
 function UpgradeService.unlockShaft(session: Session): (boolean, string?)
 	local data = session.Data
 	local nextIndex = #data.Shafts + 1
-	local def = Config.Shafts[nextIndex]
 	local cost = Formulas.nextShaftCost(data)
-	if not def or not cost then
+	if not cost then
 		return false, "Alle Ebenen freigeschaltet!"
 	end
 	if not SessionService.spendCash(session, cost) then
 		return false, "Nicht genug Geld"
 	end
+	local def = Formulas.shaftDef(nextIndex)
 	data.Shafts[nextIndex] = DataTemplate.newStation("Shaft")
+	SessionService.shaftsChanged(session)
+	session.ViewSection = 0 -- automatisch zum neuen tiefsten Abschnitt
 	MineService.ensureCycles(session)
 	PlotService.refreshLevels(session)
 	SessionService.effect(session.Player, "Unlock", { Index = nextIndex, Name = def.Name })

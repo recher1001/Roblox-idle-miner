@@ -2,15 +2,15 @@
 --[[
 	UpgradesPanel
 	=============
-	Zweispaltig und übersichtlich:
-	  Links:  Liste aller Stationen (Händler, Aufzug, Ebenen, Neue Ebene).
-	          Ein grüner ⬆-Punkt zeigt, wo du dir gerade ein Upgrade leisten kannst.
-	  Rechts: Name + Kennzahlen der gewählten Station, Kaufmenge (x1/x10/MAX)
-	          und eine große Zeile pro Upgrade (Level, jetzt ➜ danach, Preis).
-	Alle Werte kommen aus Formulas = exakt die Rechnung des Servers.
+	Links:  Händler, Aufzug und die Ebenen seitenweise (◀ Ebenen 11–20 ▶).
+	        Ein grüner ⬆-Punkt zeigt, wo du dir gerade ein Upgrade leisten kannst.
+	Rechts: buntes Minen-Banner der gewählten Station (Erz, Zyklus-Fortschritt,
+	        Kennzahlen, "👆 Abbauen" und "🎥 Zeigen"), Kaufmenge x1/x10/MAX und
+	        große Upgrade-Zeilen. Alle Werte über Formulas = Rechnung des Servers.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNum = require(Shared.BigNum)
@@ -20,7 +20,10 @@ local Formulas = require(Shared.Formulas)
 local Types = require(Shared.Types)
 
 local ClientState = require(script.Parent.Parent.Parent.ClientState)
+local PlotLocator = require(script.Parent.Parent.Parent.PlotLocator)
 local Remote = require(script.Parent.Parent.Parent.Remote)
+local CameraController = require(script.Parent.Parent.Parent.Controllers.CameraController)
+local Anim = require(script.Parent.Parent.Anim)
 local Components = require(script.Parent.Parent.Components)
 local PanelManager = require(script.Parent.Parent.PanelManager)
 local Theme = require(script.Parent.Parent.Theme)
@@ -29,7 +32,8 @@ local Util = require(script.Parent.Parent.Util)
 local UpgradesPanel = {}
 
 local UNLOCK_TAB = "Unlock"
-local LIST_WIDTH = 230
+local LIST_WIDTH = 246
+local SECTION = Config.ShaftGen.SectionSize
 
 type Row = {
 	TrackId: string,
@@ -38,23 +42,23 @@ type Row = {
 	Button: Components.Button,
 }
 
-type ListEntry = {
-	Button: Components.Button,
-	Dot: Frame,
-}
+type ListEntry = { Button: Components.Button, Dot: Frame }
 
 local window: Components.Window
 local stationList: ScrollingFrame
-local titleLabel: TextLabel
-local statsRow: Frame
+local right: Frame
 local body: ScrollingFrame
+local amountBar: Frame
 local amountButtons: { [number]: Components.Button } = {}
 local listEntries: { [string]: ListEntry } = {}
 
 local selectedKey = "Shaft:1"
+local listSection = 1
 local buyAmount = 1
 local rows: { Row } = {}
 local unlockButton: Components.Button? = nil
+local bannerProgress: Components.ProgressBar? = nil
+local bannerStats: TextLabel? = nil
 local lastListSignature = ""
 
 local function money(b: BigNum.BigNum): string
@@ -64,7 +68,7 @@ end
 local function stationColor(key: string): Color3
 	local area, index = Formulas.parseKey(key)
 	if area == "Shaft" and index then
-		return Config.Shafts[index].OreColor
+		return Formulas.shaftDef(index).OreColor
 	elseif area == "Elevator" then
 		return Theme.Colors.Blue
 	elseif area == "Warehouse" then
@@ -73,27 +77,14 @@ local function stationColor(key: string): Color3
 	return Theme.Colors.Green
 end
 
-local function listKeys(data: Types.PlayerData): { string }
-	local keys = { "Warehouse", "Elevator" }
-	for i = 1, #data.Shafts do
-		table.insert(keys, Formulas.shaftKey(i))
-	end
-	if #data.Shafts < #Config.Shafts then
-		table.insert(keys, UNLOCK_TAB)
-	end
-	return keys
+--- Für die Lesbarkeit: sehr dunkle/helle Erzfarben etwas Richtung Mitte ziehen
+local function buttonColor(c: Color3): Color3
+	local h, sat, v = c:ToHSV()
+	return Color3.fromHSV(h, math.max(sat, 0.55), math.clamp(v, 0.55, 0.9))
 end
 
-local function listText(key: string): string
-	local area, index = Formulas.parseKey(key)
-	if key == UNLOCK_TAB then
-		return "🔓 Neue Ebene"
-	elseif area == "Shaft" and index then
-		return string.format("⛏ %d · %s", index, Config.Shafts[index].Ore)
-	elseif area == "Elevator" then
-		return "🛗 Aufzug"
-	end
-	return "🏪 Händler"
+local function maxListSection(data: Types.PlayerData): number
+	return Formulas.sectionOf(math.min(#data.Shafts + 1, Formulas.shaftCount()))
 end
 
 --- Kann sich der Spieler bei dieser Station gerade ein Upgrade leisten?
@@ -103,7 +94,7 @@ local function hasAffordable(data: Types.PlayerData, key: string, now: number): 
 		return cost ~= nil and BigNum.gte(data.Cash, cost)
 	end
 	local area = Formulas.parseKey(key)
-	if not area then
+	if not area or not Formulas.getStation(data, key) then
 		return false
 	end
 	for _, def in Formulas.tracksFor(area) do
@@ -116,123 +107,361 @@ local function hasAffordable(data: Types.PlayerData, key: string, now: number): 
 end
 
 ----------------------------------------------------------------------
--- Kennzahlen-Chips unter dem Titel
+-- Linke Liste
 ----------------------------------------------------------------------
-local function chip(text: string, order: number)
-	local f = Components.pill({
-		Size = UDim2.fromOffset(0, 34),
-		AutomaticSize = Enum.AutomaticSize.X,
-		LayoutOrder = order,
-		Parent = statsRow,
-	}, Theme.Colors.Stroke)
-	Util.padding(0, 12).Parent = f
-	local l = Util.label({
-		Size = UDim2.fromScale(0, 1),
-		AutomaticSize = Enum.AutomaticSize.X,
+local function listButton(key: string, text: string, color: Color3, order: number)
+	local button = Components.button({
 		Text = text,
-		TextSize = 16,
-		Parent = f,
+		Color = color,
+		Size = UDim2.new(1, -14, 0, 54),
+		TextSize = 19,
+		LayoutOrder = order,
+		Parent = stationList,
+		OnClick = function()
+			selectedKey = key
+			UpgradesPanel.rebuild()
+		end,
 	})
-	Util.textStroke(1).Parent = l
+	button.Label.TextXAlignment = Enum.TextXAlignment.Left
+	button.Label.TextTruncate = Enum.TextTruncate.AtEnd
+	Util.padding(0, 14).Parent = button.Label
+	local dot: Frame = Util.new("Frame", {
+		Name = "Affordable",
+		Size = UDim2.fromOffset(28, 28),
+		Position = UDim2.new(1, -8, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		BackgroundColor3 = Theme.Colors.Lime,
+		Visible = false,
+		ZIndex = 6,
+		Parent = button.Instance,
+	}, { Util.round(), Util.stroke(Color3.new(1, 1, 1), 2.5) })
+	Util.label({ Size = UDim2.fromScale(1, 1), Text = "⬆", TextSize = 17, ZIndex = 7, Parent = dot })
+	local dotScale: UIScale = Util.new("UIScale", { Parent = dot })
+	Anim.pulse(dotScale, 0.15, 6)
+	listEntries[key] = { Button = button, Dot = dot }
 end
 
-local function refreshStats(data: Types.PlayerData)
-	for _, child in statsRow:GetChildren() do
-		if child:IsA("Frame") then
+local function rebuildList(data: Types.PlayerData)
+	local maxSection = maxListSection(data)
+	listSection = math.clamp(listSection, 1, maxSection)
+	local first = (listSection - 1) * SECTION + 1
+	local last = math.min(first + SECTION - 1, #data.Shafts)
+	local unlockVisible = #data.Shafts < Formulas.shaftCount() and Formulas.sectionOf(#data.Shafts + 1) == listSection
+	local signature = string.format("%d|%d|%d|%s", listSection, first, last, tostring(unlockVisible))
+	if signature == lastListSignature then
+		return
+	end
+	lastListSignature = signature
+	for _, child in stationList:GetChildren() do
+		if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
 			child:Destroy()
 		end
 	end
-	if selectedKey == UNLOCK_TAB then
-		return
+	table.clear(listEntries)
+
+	listButton("Warehouse", "🏪 Händler", Theme.Colors.Gold, 1)
+	listButton("Elevator", "🛗 Aufzug", Theme.Colors.Blue, 2)
+
+	-- Seitenwahl für die Ebenen
+	local pager: Frame = Util.new("Frame", {
+		Size = UDim2.new(1, -14, 0, 50),
+		LayoutOrder = 3,
+		BackgroundTransparency = 1,
+		Parent = stationList,
+	})
+	Components.button({
+		Text = "◀",
+		Color = Theme.Colors.Purple,
+		Size = UDim2.fromOffset(48, 48),
+		TextSize = 24,
+		Parent = pager,
+		OnClick = function()
+			listSection -= 1
+			lastListSignature = ""
+			UpgradesPanel.rebuild()
+		end,
+	}).SetEnabled(listSection > 1)
+	local pageLabel = Util.label({
+		Size = UDim2.new(1, -108, 1, 0),
+		Position = UDim2.fromOffset(54, 0),
+		Text = string.format("Ebenen %d–%d", first, first + SECTION - 1),
+		Font = Theme.Fonts.Title,
+		TextSize = 19,
+		Parent = pager,
+	})
+	Util.textStroke(1.5).Parent = pageLabel
+	Components.button({
+		Text = "▶",
+		Color = Theme.Colors.Purple,
+		Size = UDim2.fromOffset(48, 48),
+		Position = UDim2.fromScale(1, 0),
+		AnchorPoint = Vector2.new(1, 0),
+		TextSize = 24,
+		Parent = pager,
+		OnClick = function()
+			listSection += 1
+			lastListSignature = ""
+			UpgradesPanel.rebuild()
+		end,
+	}).SetEnabled(listSection < maxSection)
+
+	for i = first, last do
+		local def = Formulas.shaftDef(i)
+		listButton(Formulas.shaftKey(i), string.format("⛏ %d · %s", i, def.Ore), buttonColor(def.OreColor), 10 + i)
 	end
-	local ctx = ClientState.context()
-	local area, index = Formulas.parseKey(selectedKey)
-	if area == "Shaft" and index then
-		chip("💰 " .. money(Formulas.shaftYield(data, index, ctx)) .. " / Zyklus", 1)
-		chip(string.format("⏱ %.2fs", Formulas.shaftDuration(data, index, ctx)), 2)
-	elseif area == "Elevator" then
-		chip("📦 " .. BigNum.format(Formulas.elevatorLoad(data, ctx)) .. " pro Fahrt", 1)
-		chip(string.format("⏱ %.2fs", Formulas.elevatorDuration(data, ctx)), 2)
-	elseif area == "Warehouse" then
-		chip("📦 " .. BigNum.format(Formulas.warehouseLoad(data, ctx)), 1)
-		chip(string.format("⏱ %.2fs", Formulas.warehouseDuration(data, ctx)), 2)
-		chip(string.format("💰 Preis x%.2f", Formulas.sellPriceMultiplier(data)), 3)
+	if unlockVisible then
+		listButton(
+			UNLOCK_TAB,
+			string.format("🔓 Ebene %d", #data.Shafts + 1),
+			Theme.Colors.Lime,
+			10 + #data.Shafts + 1
+		)
 	end
-	local manager = Formulas.managerFor(data, selectedKey)
-	chip(if manager then "👔 " .. manager.Name else "👔 Kein Manager", 4)
 end
 
 ----------------------------------------------------------------------
--- Rechte Seite aufbauen
+-- Minen-Banner (rechts oben)
 ----------------------------------------------------------------------
-local function clearBody()
+local function clearRight()
 	for _, child in body:GetChildren() do
 		child:Destroy()
 	end
+	local banner = right:FindFirstChild("Banner")
+	if banner then
+		banner:Destroy()
+	end
 	table.clear(rows)
 	unlockButton = nil
+	bannerProgress = nil
+	bannerStats = nil
 	Util.list(Enum.FillDirection.Vertical, 10, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Top).Parent =
 		body
 	Util.new("UIPadding", { PaddingRight = UDim.new(0, 10), PaddingTop = UDim.new(0, 4), Parent = body })
 end
 
+local function buildBanner(key: string, title: string, subtitle: string, icon: string, color: Color3)
+	local c = buttonColor(color)
+	local banner: Frame = Util.new("Frame", {
+		Name = "Banner",
+		Size = UDim2.new(1, 0, 0, 150),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Parent = right,
+	}, {
+		Util.corner(Theme.Radius.Large),
+		Util.gradient(Theme.lighten(c, 0.15), Theme.darken(c, 0.35), 20),
+	})
+	Components.rainbowBorder(banner, 4)
+	Anim.shine(banner, Theme.Radius.Large, 5)
+	-- Deko-Kristalle
+	for n = 1, 6 do
+		local gem = Util.label({
+			Size = UDim2.fromOffset(40, 40),
+			Position = UDim2.fromScale(0.5 + (n - 3.5) * 0.09, if n % 2 == 0 then 0.12 else 0.62),
+			Text = if n % 3 == 0 then "✨" else "💎",
+			TextSize = 22 + (n % 3) * 6,
+			TextTransparency = 0.45,
+			Rotation = (n * 37) % 40 - 20,
+			Parent = banner,
+		})
+		gem.ZIndex = 1
+	end
+	local orb: Frame = Util.new("Frame", {
+		Size = UDim2.fromOffset(110, 110),
+		Position = UDim2.new(0, 18, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		ZIndex = 3,
+		Parent = banner,
+	}, {
+		Util.round(),
+		Util.gradient(Theme.lighten(c, 0.45), Theme.darken(c, 0.1)),
+		Util.stroke(Color3.new(1, 1, 1), 4),
+	})
+	Util.label({ Size = UDim2.fromScale(1, 1), Text = icon, TextSize = 56, ZIndex = 4, Parent = orb })
+	local orbScale: UIScale = Util.new("UIScale", { Parent = orb })
+	Anim.pulse(orbScale, 0.05, 3)
+
+	local titleLabel = Util.label({
+		Size = UDim2.new(1, -330, 0, 40),
+		Position = UDim2.fromOffset(142, 12),
+		Text = title,
+		Font = Theme.Fonts.Title,
+		TextSize = 30,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		ZIndex = 4,
+		Parent = banner,
+	})
+	Util.textStroke(2.5).Parent = titleLabel
+	local sub = Util.label({
+		Size = UDim2.new(1, -330, 0, 24),
+		Position = UDim2.fromOffset(142, 52),
+		Text = subtitle,
+		TextSize = 17,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 4,
+		Parent = banner,
+	})
+	Util.textStroke(1.5).Parent = sub
+	bannerStats = Util.label({
+		Size = UDim2.new(1, -330, 0, 24),
+		Position = UDim2.fromOffset(142, 78),
+		Text = "",
+		TextSize = 17,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		ZIndex = 4,
+		Parent = banner,
+	})
+	Util.textStroke(1.5).Parent = bannerStats
+	if key ~= UNLOCK_TAB then
+		local bar = Components.progressBar({
+			Size = UDim2.new(1, -340, 0, 20),
+			Position = UDim2.fromOffset(142, 112),
+			ZIndex = 4,
+			Parent = banner,
+		}, Theme.Colors.Lime)
+		bar.SetText("Zyklus")
+		bannerProgress = bar
+	end
+
+	-- Aktionen rechts im Banner
+	local actions: Frame = Util.new("Frame", {
+		Size = UDim2.fromOffset(180, 130),
+		Position = UDim2.new(1, -14, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		BackgroundTransparency = 1,
+		ZIndex = 4,
+		Parent = banner,
+	}, { Util.list(Enum.FillDirection.Vertical, 10) })
+	if key ~= UNLOCK_TAB then
+		local snap = ClientState.Snapshot
+		local hasManager = snap ~= nil and Formulas.managerFor(snap.Data, key) ~= nil
+		if not hasManager then
+			Components.button({
+				Text = "👆 Abbauen",
+				Color = Theme.Colors.Lime,
+				Size = UDim2.fromOffset(176, 58),
+				TextSize = 21,
+				LayoutOrder = 1,
+				Parent = actions,
+				Shine = true,
+				OnClick = function()
+					Remote.send("Work", { Key = key })
+				end,
+			})
+		end
+		Components.button({
+			Text = "🎥 Zeigen",
+			Color = Theme.Colors.Cyan,
+			Size = UDim2.fromOffset(176, 58),
+			TextSize = 21,
+			LayoutOrder = 2,
+			Parent = actions,
+			OnClick = function()
+				local _, index = Formulas.parseKey(key)
+				PanelManager.close()
+				if index then
+					CameraController.focusLevel(index)
+				elseif not CameraController.isActive() then
+					CameraController.setActive(true)
+				end
+			end,
+		})
+	end
+end
+
+local function statsText(data: Types.PlayerData, key: string): string
+	local ctx = ClientState.context()
+	local area, index = Formulas.parseKey(key)
+	local manager = Formulas.managerFor(data, key)
+	local managerText = if manager then "👔 " .. manager.Name else "👔 Kein Manager"
+	if area == "Shaft" and index then
+		return string.format(
+			"💰 %s / Zyklus  •  ⏱ %.2fs  •  %s",
+			money(Formulas.shaftYield(data, index, ctx)),
+			Formulas.shaftDuration(data, index, ctx),
+			managerText
+		)
+	elseif area == "Elevator" then
+		return string.format(
+			"📦 %s pro Fahrt  •  ⏱ %.2fs  •  %s",
+			BigNum.format(Formulas.elevatorLoad(data, ctx)),
+			Formulas.elevatorDuration(data, ctx),
+			managerText
+		)
+	end
+	return string.format(
+		"📦 %s  •  ⏱ %.2fs  •  💰 x%.2f  •  %s",
+		BigNum.format(Formulas.warehouseLoad(data, ctx)),
+		Formulas.warehouseDuration(data, ctx),
+		Formulas.sellPriceMultiplier(data),
+		managerText
+	)
+end
+
+----------------------------------------------------------------------
+-- Upgrade-Zeilen
+----------------------------------------------------------------------
 local function buildTrackRow(key: string, def: Config.TrackDef, order: number)
-	local color = stationColor(key)
-	local card = Components.card({ Size = UDim2.new(1, 0, 0, 108), LayoutOrder = order, Parent = body })
+	local color = buttonColor(stationColor(key))
+	local card = Components.card({ Size = UDim2.new(1, 0, 0, 108), LayoutOrder = order, Parent = body }, color)
 	local icon: Frame = Util.new("Frame", {
-		Size = UDim2.fromOffset(72, 72),
+		Size = UDim2.fromOffset(74, 74),
 		Position = UDim2.new(0, 14, 0.5, 0),
 		AnchorPoint = Vector2.new(0, 0.5),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		Parent = card,
 	}, {
 		Util.round(),
-		Util.gradient(Theme.lighten(color, 0.35), Theme.darken(color, 0.15)),
-		Util.stroke(Color3.new(1, 1, 1), 2.5, 0.2),
+		Util.gradient(Theme.lighten(color, 0.4), Theme.darken(color, 0.1)),
+		Util.stroke(Color3.new(1, 1, 1), 3),
 	})
-	Util.label({ Size = UDim2.fromScale(1, 1), Text = def.Icon, TextSize = 38, Parent = icon })
+	Util.label({ Size = UDim2.fromScale(1, 1), Text = def.Icon, TextSize = 40, Parent = icon })
 
 	local textWidth = -330
 	local name = Util.label({
 		Size = UDim2.new(1, textWidth, 0, 30),
-		Position = UDim2.fromOffset(100, 10),
+		Position = UDim2.fromOffset(102, 10),
 		Text = def.Name,
 		Font = Theme.Fonts.Title,
 		TextSize = 25,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = card,
 	})
-	Util.textStroke(1.5).Parent = name
+	Util.textStroke(1.8).Parent = name
 	local level = Util.label({
 		Size = UDim2.new(1, textWidth, 0, 22),
-		Position = UDim2.fromOffset(100, 42),
+		Position = UDim2.fromOffset(102, 42),
 		Text = "",
+		Font = Theme.Fonts.Number,
 		TextSize = 17,
-		TextColor3 = Theme.Colors.Gold,
+		TextColor3 = Theme.Colors.Selected,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = card,
 	})
-	Util.textStroke(1).Parent = level
+	Util.textStroke(1.5).Parent = level
 	local effect = Util.label({
 		Size = UDim2.new(1, textWidth, 0, 26),
-		Position = UDim2.fromOffset(100, 70),
+		Position = UDim2.fromOffset(102, 70),
 		Text = "",
 		TextSize = 18,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = card,
 	})
-	Util.textStroke(1).Parent = effect
+	Util.textStroke(1.5).Parent = effect
 
 	local button: Components.Button
 	button = Components.button({
 		Text = "",
 		Color = Theme.Colors.Green,
-		Size = UDim2.fromOffset(206, 76),
+		Size = UDim2.fromOffset(206, 78),
 		Position = UDim2.new(1, -14, 0.5, 0),
 		AnchorPoint = Vector2.new(1, 0.5),
 		TextSize = 24,
 		Parent = card,
 		Sound = "Purchase",
+		Shine = true,
 		OnClick = function()
 			local r = Remote.request("Upgrade", { Key = key, Track = def.Id, Amount = buyAmount })
 			if r.ok then
@@ -245,54 +474,35 @@ end
 
 local function buildUnlock(data: Types.PlayerData)
 	local nextIndex = #data.Shafts + 1
-	local def = Config.Shafts[nextIndex]
-	if not def then
+	if nextIndex > Formulas.shaftCount() then
 		return
 	end
-	local card = Components.card({ Size = UDim2.new(1, 0, 0, 250), LayoutOrder = 1, Parent = body }, def.OreColor)
-	local orb: Frame = Util.new("Frame", {
-		Size = UDim2.fromOffset(120, 120),
-		Position = UDim2.new(0.5, 0, 0, 18),
-		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		Parent = card,
-	}, {
-		Util.round(),
-		Util.gradient(Theme.lighten(def.OreColor, 0.4), Theme.darken(def.OreColor, 0.2)),
-		Util.stroke(Color3.new(1, 1, 1), 3, 0.2),
-	})
-	Util.label({ Size = UDim2.fromScale(1, 1), Text = "⛏", TextSize = 56, Parent = orb })
-	local title = Util.label({
-		Size = UDim2.new(1, 0, 0, 36),
-		Position = UDim2.fromOffset(0, 144),
-		Text = string.format("Ebene %d: %s", nextIndex, def.Name),
-		Font = Theme.Fonts.Title,
-		TextSize = 28,
-		Parent = card,
-	})
-	Util.textStroke(1.5).Parent = title
-	local info = Util.label({
-		Size = UDim2.new(1, 0, 0, 26),
-		Position = UDim2.fromOffset(0, 184),
-		Text = string.format("%s  •  %s pro Zyklus", def.Ore, money(BigNum.new(def.BaseYield))),
-		TextSize = 19,
-		Parent = card,
-	})
-	Util.textStroke(1).Parent = info
+	local def = Formulas.shaftDef(nextIndex)
+	buildBanner(
+		UNLOCK_TAB,
+		string.format("Ebene %d: %s", nextIndex, def.Name),
+		string.format("%s  •  %s pro Zyklus", def.Ore, money(def.BaseYield)),
+		"🔓",
+		def.OreColor
+	)
 	local button: Components.Button
 	button = Components.button({
 		Text = "Freischalten",
-		Color = Theme.Colors.Green,
-		Size = UDim2.fromOffset(340, 76),
-		LayoutOrder = 2,
-		TextSize = 26,
+		Color = Theme.Colors.Lime,
+		Size = UDim2.fromOffset(380, 84),
+		LayoutOrder = 1,
+		TextSize = 28,
 		Sound = "Purchase",
+		Shine = true,
+		Rainbow = true,
 		Parent = body,
 		OnClick = function()
 			local r = Remote.request("UnlockShaft")
 			if r.ok then
 				button.Pop()
 				selectedKey = Formulas.shaftKey(nextIndex)
+				listSection = Formulas.sectionOf(nextIndex)
+				lastListSignature = ""
 				UpgradesPanel.rebuild()
 			end
 		end,
@@ -319,15 +529,15 @@ local function updateTexts()
 			if quote then
 				local nowText = Formulas.trackEffectText(data, selectedKey, row.TrackId, level)
 				if quote.Maxed then
-					row.Level.Text = string.format("Level %d  •  MAX", level)
+					row.Level.Text = string.format("LEVEL %d  •  MAX", level)
 					row.Effect.Text = nowText
 					row.Button.SetText("MAX")
 					row.Button.SetEnabled(false)
 				else
 					local nextLevel = level + quote.Levels
-					row.Level.Text = string.format("Level %d  ➜  %d", level, nextLevel)
+					row.Level.Text = string.format("LEVEL %d  ➜  %d", level, nextLevel)
 					row.Effect.Text = string.format(
-						'%s  ➜  <font color="#9BFFAE">%s</font>',
+						'%s  ➜  <font color="#A8FF4F">%s</font>',
 						nowText,
 						Formulas.trackEffectText(data, selectedKey, row.TrackId, nextLevel)
 					)
@@ -338,62 +548,35 @@ local function updateTexts()
 				end
 			end
 		end
-		refreshStats(data)
+		local stats = bannerStats
+		if stats then
+			stats.Text = statsText(data, selectedKey)
+		end
 	end
 	if unlockButton then
 		local cost = Formulas.nextShaftCost(data)
 		if cost then
-			unlockButton.SetText("Freischalten  " .. money(cost))
+			unlockButton.SetText("🔓 Freischalten  " .. money(cost))
 			unlockButton.SetEnabled(BigNum.gte(data.Cash, cost))
 		end
 	end
 	for key, entry in listEntries do
-		entry.Button.SetColor(if key == selectedKey then Theme.Colors.Selected else Theme.Colors.CardLight)
-		entry.Dot.Visible = key ~= selectedKey and hasAffordable(data, key, now)
+		local selected = key == selectedKey
+		if selected then
+			entry.Button.SetColor(Theme.Colors.Selected)
+		else
+			entry.Button.SetColor(
+				if key == UNLOCK_TAB
+					then Theme.Colors.Lime
+					elseif key == "Warehouse" then Theme.Colors.Gold
+					elseif key == "Elevator" then Theme.Colors.Blue
+					else buttonColor(stationColor(key))
+			)
+		end
+		entry.Dot.Visible = not selected and hasAffordable(data, key, now)
 	end
 	for amount, b in amountButtons do
-		b.SetColor(if amount == buyAmount then Theme.Colors.Selected else Theme.Colors.CardLight)
-	end
-end
-
-local function rebuildList(data: Types.PlayerData)
-	local keys = listKeys(data)
-	local signature = table.concat(keys, ",")
-	if signature == lastListSignature then
-		return
-	end
-	lastListSignature = signature
-	for _, entry in listEntries do
-		entry.Button.Instance:Destroy()
-	end
-	table.clear(listEntries)
-	for i, key in keys do
-		local button = Components.button({
-			Text = listText(key),
-			Color = Theme.Colors.CardLight,
-			Size = UDim2.new(1, -12, 0, 56),
-			TextSize = 19,
-			LayoutOrder = i,
-			Parent = stationList,
-			OnClick = function()
-				selectedKey = key
-				UpgradesPanel.rebuild()
-			end,
-		})
-		button.Label.TextXAlignment = Enum.TextXAlignment.Left
-		Util.padding(0, 14).Parent = button.Label
-		local dot: Frame = Util.new("Frame", {
-			Name = "Affordable",
-			Size = UDim2.fromOffset(26, 26),
-			Position = UDim2.new(1, -8, 0.5, 0),
-			AnchorPoint = Vector2.new(1, 0.5),
-			BackgroundColor3 = Theme.Colors.Green,
-			Visible = false,
-			ZIndex = 4,
-			Parent = button.Instance,
-		}, { Util.round(), Util.stroke(Color3.new(1, 1, 1), 2) })
-		Util.label({ Size = UDim2.fromScale(1, 1), Text = "⬆", TextSize = 16, ZIndex = 5, Parent = dot })
-		listEntries[key] = { Button = button, Dot = dot }
+		b.SetColor(if amount == buyAmount then Theme.Colors.Selected else Theme.Colors.Purple)
 	end
 end
 
@@ -403,19 +586,33 @@ function UpgradesPanel.rebuild()
 		return
 	end
 	local data = snap.Data
-	rebuildList(data)
 	if selectedKey ~= UNLOCK_TAB and not Formulas.getStation(data, selectedKey) then
 		selectedKey = "Shaft:1"
 	end
-	if selectedKey == UNLOCK_TAB and #data.Shafts >= #Config.Shafts then
+	if selectedKey == UNLOCK_TAB and #data.Shafts >= Formulas.shaftCount() then
 		selectedKey = "Shaft:1"
 	end
-	clearBody()
-	titleLabel.Text = if selectedKey == UNLOCK_TAB then "🔓 Neue Ebene" else Formulas.stationDisplayName(selectedKey)
+	rebuildList(data)
+	clearRight()
+	amountBar.Visible = selectedKey ~= UNLOCK_TAB
 	if selectedKey == UNLOCK_TAB then
 		buildUnlock(data)
 	else
-		local area = Formulas.parseKey(selectedKey)
+		local area, index = Formulas.parseKey(selectedKey)
+		if area == "Shaft" and index then
+			local def = Formulas.shaftDef(index)
+			buildBanner(
+				selectedKey,
+				string.format("Ebene %d: %s", index, def.Name),
+				string.format("%s  •  Abschnitt %d", def.Ore, Formulas.sectionOf(index)),
+				"⛏",
+				def.OreColor
+			)
+		elseif area == "Elevator" then
+			buildBanner(selectedKey, "Aufzug", "Bringt das Erz nach oben ins Aufzugslager", "🛗", Theme.Colors.Blue)
+		elseif area == "Warehouse" then
+			buildBanner(selectedKey, "Händler", "Verkauft das Erz für Geld", "🏪", Theme.Colors.Gold)
+		end
 		if area then
 			for i, def in Formulas.tracksFor(area) do
 				buildTrackRow(selectedKey, def, i)
@@ -426,52 +623,48 @@ function UpgradesPanel.rebuild()
 end
 
 function UpgradesPanel.start()
-	window = Components.window("Upgrades", "⬆️", Theme.Colors.Gold, Vector2.new(940, 590), function()
+	window = Components.window("Upgrades", "⬆️", Theme.Colors.Gold, Vector2.new(980, 610), function()
 		PanelManager.close()
 	end)
 	local content = window.Content
 
-	-- Linke Spalte: Stationen
 	stationList = Components.scrollList({
 		Size = UDim2.new(0, LIST_WIDTH, 1, 0),
 		Parent = content,
 	}, 8)
 
-	-- Rechte Spalte
-	local right: Frame = Util.new("Frame", {
+	right = Util.new("Frame", {
 		Name = "Right",
 		Size = UDim2.new(1, -(LIST_WIDTH + 14), 1, 0),
 		Position = UDim2.fromOffset(LIST_WIDTH + 14, 0),
 		BackgroundTransparency = 1,
 		Parent = content,
 	})
-	titleLabel = Util.label({
-		Size = UDim2.new(1, -250, 0, 40),
-		Text = "",
-		Font = Theme.Fonts.Title,
-		TextSize = 28,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-		Parent = right,
-	})
-	Util.textStroke(1.5).Parent = titleLabel
 
-	local amounts: Frame = Util.new("Frame", {
+	amountBar = Util.new("Frame", {
 		Name = "Amounts",
-		Size = UDim2.fromOffset(244, 50),
-		Position = UDim2.fromScale(1, 0),
-		AnchorPoint = Vector2.new(1, 0),
+		Size = UDim2.new(1, 0, 0, 50),
+		Position = UDim2.fromOffset(0, 158),
 		BackgroundTransparency = 1,
 		Parent = right,
-	}, { Util.list(Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Right) })
+	}, { Util.list(Enum.FillDirection.Horizontal, 8, Enum.HorizontalAlignment.Right) })
+	local amountLabel = Util.label({
+		Size = UDim2.fromOffset(110, 48),
+		Text = "Menge:",
+		Font = Theme.Fonts.Title,
+		TextSize = 21,
+		LayoutOrder = 0,
+		Parent = amountBar,
+	})
+	Util.textStroke(1.5).Parent = amountLabel
 	for i, amount in Config.BuyAmounts do
 		amountButtons[amount] = Components.button({
 			Text = if amount == -1 then "MAX" else "x" .. amount,
-			Color = Theme.Colors.CardLight,
-			Size = UDim2.fromOffset(76, 48),
-			TextSize = 20,
+			Color = Theme.Colors.Purple,
+			Size = UDim2.fromOffset(84, 48),
+			TextSize = 21,
 			LayoutOrder = i,
-			Parent = amounts,
+			Parent = amountBar,
 			OnClick = function()
 				buyAmount = amount
 				updateTexts()
@@ -479,18 +672,10 @@ function UpgradesPanel.start()
 		})
 	end
 
-	statsRow = Util.new("Frame", {
-		Name = "Stats",
-		Size = UDim2.new(1, 0, 0, 36),
-		Position = UDim2.fromOffset(0, 56),
-		BackgroundTransparency = 1,
-		Parent = right,
-	}, { Util.list(Enum.FillDirection.Horizontal, 8, Enum.HorizontalAlignment.Left) })
-
 	body = Util.new("ScrollingFrame", {
 		Name = "Body",
-		Size = UDim2.new(1, 0, 1, -104),
-		Position = UDim2.fromOffset(0, 104),
+		Size = UDim2.new(1, 0, 1, -216),
+		Position = UDim2.fromOffset(0, 216),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 6,
@@ -501,9 +686,18 @@ function UpgradesPanel.start()
 	})
 
 	PanelManager.register("Upgrades", window, function(arg: any)
+		local snap = ClientState.Snapshot
 		if type(arg) == "string" then
 			selectedKey = arg
 		end
+		if snap then
+			local _, index = Formulas.parseKey(selectedKey)
+			if selectedKey == UNLOCK_TAB then
+				index = #snap.Data.Shafts + 1
+			end
+			listSection = if index then Formulas.sectionOf(index) else maxListSection(snap.Data)
+		end
+		lastListSignature = ""
 		UpgradesPanel.rebuild()
 	end)
 
@@ -517,6 +711,30 @@ function UpgradesPanel.start()
 		if now - lastUpdate > 0.15 then
 			lastUpdate = now
 			updateTexts()
+		end
+	end)
+
+	-- Zyklus-Fortschritt im Banner live anzeigen
+	RunService.RenderStepped:Connect(function()
+		local bar = bannerProgress
+		if not bar or not PanelManager.isOpen("Upgrades") then
+			return
+		end
+		local station = PlotLocator.station(PlotLocator.ownPlot(), selectedKey)
+		if not station then
+			bar.Set(0)
+			bar.SetText("Nicht im angezeigten Abschnitt")
+			return
+		end
+		local running = station:GetAttribute("Running") == true
+		local s = station:GetAttribute("CycleStart")
+		local e = station:GetAttribute("CycleEnd")
+		if running and type(s) == "number" and type(e) == "number" and e > s then
+			bar.Set((Clock.now() - s) / (e - s))
+			bar.SetText("⚙ arbeitet ...")
+		else
+			bar.Set(0)
+			bar.SetText(if station:GetAttribute("HasManager") then "wartet auf Erz" else "👆 Tippen zum Arbeiten")
 		end
 	end)
 end

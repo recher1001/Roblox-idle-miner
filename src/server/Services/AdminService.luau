@@ -46,6 +46,7 @@ local ADMIN_KEY = "Admins"
 local ownerUserId: number = CFG.OwnerUserId
 local admins: { [number]: AdminRecord } = {}
 local store: DataStore? = nil
+local syncTools: (Session) -> () -- weiter unten definiert
 
 ----------------------------------------------------------------------
 -- Rollen & Rechte
@@ -113,6 +114,7 @@ end
 --- Aktualisiert die Admin-Infos im Snapshot eines Spielers
 local function refreshInfo(session: Session)
 	local player = session.Player
+	task.defer(syncTools, session)
 	if not AdminService.isAdmin(player) then
 		session.Admin = nil
 		session.Dirty = true
@@ -283,6 +285,18 @@ local function setCarpet(player: Player, on: boolean)
 end
 
 --- Wendet Speed/Sprung/Teppich auf den aktuellen Charakter an
+--- Gibt es ein ausgerüstetes Item mit dieser Kraft?
+local function equipped(character: Model, powerId: string): boolean
+	for _, child in character:GetChildren() do
+		if child:IsA("Tool") and child:GetAttribute("PowerTool") == powerId then
+			return true
+		end
+	end
+	return false
+end
+
+--- Wendet Speed/Sprung/Teppich auf den aktuellen Charakter an.
+--- Die Kräfte wirken, solange das passende Item ausgerüstet ist.
 local function applyPowers(session: Session)
 	local character = session.Player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -290,12 +304,97 @@ local function applyPowers(session: Session)
 		return
 	end
 	local data = session.Data
-	humanoid.WalkSpeed = if Formulas.hasPower(data, "Speed") then CFG.WalkSpeed else 16
+	local speed = Formulas.hasPower(data, "Speed") and equipped(character, "Speed")
+	local jump = Formulas.hasPower(data, "Jump") and equipped(character, "Jump")
+	local carpet = Formulas.hasPower(data, "Carpet") and equipped(character, "Carpet")
+	humanoid.WalkSpeed = if speed then CFG.WalkSpeed else 16
 	humanoid.UseJumpPower = true
-	humanoid.JumpPower = if Formulas.hasPower(data, "Jump") then CFG.JumpPower else 50
-	if not Formulas.hasPower(data, "Carpet") and character:GetAttribute("CarpetActive") then
-		setCarpet(session.Player, false)
+	humanoid.JumpPower = if jump then CFG.JumpPower else 50
+	local carpetActive = character:GetAttribute("CarpetActive") == true
+	if carpet ~= carpetActive then
+		setCarpet(session.Player, carpet)
 	end
+end
+
+----------------------------------------------------------------------
+-- Items im Inventar (Backpack)
+----------------------------------------------------------------------
+type ToolDef = { Id: string, Name: string, Tip: string }
+local POWER_TOOLS: { ToolDef } = {
+	{ Id = "Carpet", Name = "🧞 Teppich", Tip = "Ausrüsten = fliegen! Leertaste/▲ hoch, Q/▼ runter" },
+	{ Id = "Speed", Name = "⚡ Speed-Spule", Tip = "Ausrüsten = super schnell rennen" },
+	{ Id = "Jump", Name = "🦘 Sprung-Spule", Tip = "Ausrüsten = riesig hoch springen" },
+}
+local WAND: ToolDef =
+	{ Id = "AdminWand", Name = "🪄 Admin-Stab", Tip = "Auf einen Spieler klicken = Admin-Menü für ihn" }
+
+local function makeTool(def: ToolDef): Tool
+	local tool = Instance.new("Tool")
+	tool.Name = def.Name
+	tool.ToolTip = def.Tip
+	tool.RequiresHandle = false
+	tool.CanBeDropped = false
+	tool:SetAttribute("PowerTool", def.Id)
+	return tool
+end
+
+local function wantedTools(session: Session): { ToolDef }
+	local list = {}
+	for _, def in POWER_TOOLS do
+		if Formulas.hasPower(session.Data, def.Id) then
+			table.insert(list, def)
+		end
+	end
+	if AdminService.isAdmin(session.Player) then
+		table.insert(list, WAND)
+	end
+	return list
+end
+
+--- Gleicht die Items in Backpack/Charakter mit den Kräften ab (auch nach dem Respawn)
+syncTools = function(session: Session)
+	local player = session.Player
+	if not player.Parent then
+		return
+	end
+	local wanted: { [string]: ToolDef } = {}
+	for _, def in wantedTools(session) do
+		wanted[def.Id] = def
+	end
+	local containers: { Instance } = {}
+	for _, name in { "Backpack" } do
+		local c = player:FindFirstChild(name)
+		if c then
+			table.insert(containers, c)
+		end
+	end
+	if player.Character then
+		table.insert(containers, player.Character)
+	end
+	local present: { [string]: { [Instance]: boolean } } = {}
+	for _, container in containers do
+		for _, child in container:GetChildren() do
+			local id = child:GetAttribute("PowerTool")
+			if child:IsA("Tool") and type(id) == "string" then
+				if wanted[id] then
+					present[id] = present[id] or {}
+					present[id][container] = true
+				else
+					child:Destroy()
+				end
+			end
+		end
+	end
+	local backpack = player:FindFirstChild("Backpack")
+	local character = player.Character
+	for id, def in wanted do
+		local where = present[id] or {}
+		local inHand = character ~= nil and where[character] == true
+		if backpack and not inHand and not where[backpack] then
+			makeTool(def).Parent = backpack
+		end
+	end
+	applyPowers(session)
 end
 
 ----------------------------------------------------------------------
@@ -347,7 +446,7 @@ local function apply(target: Session, action: string, value: string): string?
 		data.Gems = 0
 		return "Gems auf 0"
 	elseif action == "unlockall" then
-		while #data.Shafts < #Config.Shafts do
+		while #data.Shafts < Formulas.shaftCount() do
 			table.insert(data.Shafts, DataTemplate.newStation("Shaft"))
 		end
 		MineService.ensureCycles(target)
@@ -387,7 +486,7 @@ local function apply(target: Session, action: string, value: string): string?
 		else
 			data.Powers[value] = nil
 		end
-		applyPowers(target)
+		syncTools(target)
 		return (if action == "powergive" then "Kraft erhalten: " else "Kraft entfernt: ") .. value
 	elseif action == "event" then
 		EventService.trigger(if value ~= "" then value else nil)
@@ -441,7 +540,8 @@ function AdminService.action(actor: Session, action: string, targetUserId: numbe
 	if not result then
 		return false, "Ungültiger Wert"
 	end
-	target.Dirty = true
+	SessionService.shaftsChanged(target)
+	SessionService.managersChanged(target)
 	PlotService.updateVisuals(target)
 	print(string.format("[Admin] %s -> %s: %s (%s)", player.Name, target.Player.Name, action, value))
 	if target.Player ~= player and action ~= "kick" then
@@ -577,11 +677,27 @@ function AdminService.start()
 
 	SessionService.onStart(15, function(session)
 		refreshInfo(session)
-		session.Maid:Give(session.Player.CharacterAdded:Connect(function(character)
+		local function watchCharacter(character: Model)
 			character:WaitForChild("Humanoid", 10)
-			applyPowers(session)
-		end))
-		applyPowers(session)
+			-- Item ausgerüstet / abgelegt -> Kräfte an/aus
+			-- (Connections am Charakter enden automatisch, wenn er entfernt wird)
+			character.ChildAdded:Connect(function(child)
+				if child:IsA("Tool") and child:GetAttribute("PowerTool") then
+					applyPowers(session)
+				end
+			end)
+			character.ChildRemoved:Connect(function(child)
+				if child:IsA("Tool") and child:GetAttribute("PowerTool") then
+					applyPowers(session)
+				end
+			end)
+			task.wait(0.5) -- Backpack wird beim Spawnen neu aufgebaut
+			syncTools(session)
+		end
+		session.Maid:Give(session.Player.CharacterAdded:Connect(watchCharacter))
+		if session.Player.Character then
+			task.spawn(watchCharacter, session.Player.Character)
+		end
 	end)
 
 	NetService.register(
@@ -612,10 +728,7 @@ function AdminService.start()
 		if not Formulas.hasPower(session.Data, "Carpet") then
 			return false, "Du hast keinen fliegenden Teppich"
 		end
-		local character = session.Player.Character
-		local active = character ~= nil and character:GetAttribute("CarpetActive") == true
-		setCarpet(session.Player, not active)
-		return true, nil
+		return false, "Rüste den 🧞 Teppich in deinem Inventar aus!"
 	end)
 
 	-- Chat-Befehle für Admins (z. B. "/cash 1e9", "/gems 100")

@@ -27,7 +27,7 @@ es werden **keine externen Assets** benötigt.
 
 | Bereich | Was drin ist |
 |---|---|
-| **Mining** | Bis zu 10 Ebenen (Kohle → Mythril). Kumpel bauen Erz ab → Schachtlager → Aufzug → Aufzugslager → Händler → Geld |
+| **Mining** | **500 Ebenen** (Kohle → Mythril → Obsidian … Kosmos XX). Kumpel bauen Erz ab → Schachtlager → Aufzug → Aufzugslager → Händler → Geld. Die Grube zeigt immer einen Abschnitt mit 10 Ebenen (◀ ▶ in der 2D-Ansicht) |
 | **Selbst arbeiten** | Ohne Manager startet jede Station nur, wenn du sie antippst („👆 TIPPEN!“-Hinweis) |
 | **Upgrades** | Pro Station eigene Tracks (Tempo, Erzwert, Kapazität, Verkaufspreis) – x1 / x10 / MAX, exponentielle Kosten, Meilenstein-Boni |
 | **Manager** | Einstellen für Geld, 5 Seltenheiten (Gewöhnlich → Mythisch) mit Reveal-Animation, automatisieren die Station, passiver Tempo-Bonus + aktive Fähigkeit (Turbo, Goldader, Schwerlast, Sparfuchs), „Alle boosten“ |
@@ -115,7 +115,8 @@ rojo build -o IdleMiner.rbxlx
    3. Tippe den **Händler** an → der Wagen verkauft das Erz → **+$** fliegt hoch.
    4. **👔 Manager** → einen Manager einstellen → Reveal-Animation → die Station läuft jetzt automatisch.
    5. **⬆️ Upgrades** oder der gelbe **⬆**-Button neben einer Station → Level kaufen.
-   6. **🎥 Ansicht** → seitliche Minenansicht. Scrollen mit Mausrad / Wischen / ▲▼.
+   6. **🎥 2D-MINENANSICHT** (großer Button unten in der Mitte) → seitliche Minenansicht.
+      Scrollen mit Mausrad / Wischen / ▲▼, Abschnitt wechseln mit ◀ ▶.
 
 ### Admin-Menü (🛠 Admin, oben links)
 
@@ -136,8 +137,10 @@ Regeln (vom Server erzwungen):
 - Admins können dem Owner nichts wegnehmen, ihn nicht kicken und nicht zurücksetzen.
 - Nur der Owner kann Admins ernennen und Rechte vergeben. Die Admin-Liste wird gespeichert
   und gilt in allen Servern.
-- Kräfte werden im Spielstand gespeichert. Mit dem 🧞 Teppich fliegst du:
-  Laufen = Richtung, Leertaste/E bzw. ▲ = hoch, Q/Strg bzw. ▼ = runter.
+- Kräfte werden im Spielstand gespeichert. 🧞 Teppich, ⚡ Speed-Spule und 🦘 Sprung-Spule
+  liegen als **Items im Inventar** und wirken, solange sie ausgerüstet sind.
+  Teppich: Laufen = Richtung, Leertaste/E bzw. ▲ = hoch, Q/Strg bzw. ▼ = runter.
+- Admins bekommen den **🪄 Admin-Stab** ins Inventar: auf einen Spieler klicken → Admin-Menü für ihn.
 
 Chat-Befehle für Admins (wenn der Chat sie durchlässt): `/cash 1e9`, `/gems 100`, `/unlockall`,
 `/managers`, `/cooldowns`, `/event`.
@@ -215,7 +218,8 @@ src/
 
 Alle Zahlen stehen in `src/shared/Config.luau` – du musst keinen anderen Code anfassen:
 
-- `Config.Shafts` – Ebenen: Name, Erzfarbe, Freischaltkosten, Ertrag, Zyklusdauer
+- `Config.Shafts` – die ersten 10 Ebenen von Hand: Name, Erzfarbe, Freischaltkosten, Ertrag, Zyklusdauer
+- `Config.ShaftCount` / `Config.ShaftGen` – Anzahl Ebenen (500), Erz-Liste und Wachstum für die automatisch erzeugten Ebenen
 - `Config.Tracks` – Upgrade-Tracks pro Station: Basiskosten, Wachstum, Wirkung pro Level, Meilensteine
 - `Config.Managers` – Einstellkosten, Seltenheiten (Chance, Boni, Dauer, Abklingzeit), Fähigkeiten
 - `Config.Rebirth` – Mindestverdienst, Punkte-Formel, Multiplikator pro Punkt
@@ -226,7 +230,7 @@ Alle Zahlen stehen in `src/shared/Config.luau` – du musst keinen anderen Code 
 - `Config.RateLimits` – Exploit-Schutz pro Aktion
 
 Mit den Standardwerten (simuliert): alle Stationen automatisiert nach ~4 Min., erster Rebirth
-nach ~20 Min., Ebene 8 nach gut 2 Stunden.
+nach ~20 Min.; mit Rebirths ~Ebene 90 nach 4 h, ~Ebene 200 nach 5 h, Ebene 500 ist das Langzeitziel.
 
 ---
 

@@ -205,7 +205,7 @@ local function swingPlaceholder(figure: Model, angle: number)
 end
 
 local function animateShaft(station: Model, origin: CFrame, now: number, t: number)
-	local index = attrNumber(station, "Index")
+	local index = attrNumber(station, "Slot")
 	local running = progress(station, now)
 	local miners = station:FindFirstChild("Miners")
 	if miners then

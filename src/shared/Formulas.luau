@@ -22,6 +22,89 @@ type CalcContext = Types.CalcContext
 local Formulas = {}
 
 ----------------------------------------------------------------------
+-- Ebenen (1-10 handgemacht in Config.Shafts, danach automatisch erzeugt)
+----------------------------------------------------------------------
+export type ShaftInfo = {
+	Index: number,
+	Name: string,
+	Ore: string,
+	OreColor: Color3,
+	RockColor: Color3,
+	BaseCycle: number,
+	BaseYield: BigNum,
+	UnlockCost: BigNum,
+	Tier: number,
+}
+
+local ROMAN = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" }
+local function roman(n: number): string
+	if n <= #ROMAN then
+		return ROMAN[n]
+	end
+	local tens = n // 10
+	local rest = n % 10
+	return string.rep("X", tens) .. (if rest > 0 then ROMAN[rest] else "")
+end
+
+local shaftCache: { [number]: ShaftInfo } = {}
+
+function Formulas.shaftCount(): number
+	return Config.ShaftCount
+end
+
+function Formulas.shaftDef(index: number): ShaftInfo
+	local cached = shaftCache[index]
+	if cached then
+		return cached
+	end
+	local gen = Config.ShaftGen
+	local ores = gen.Ores
+	local ore = ores[((index - 1) % #ores) + 1]
+	local tier = (index - 1) // #ores + 1
+	local hand = Config.Shafts[index]
+	local info: ShaftInfo
+	if hand then
+		info = {
+			Index = index,
+			Name = hand.Name,
+			Ore = hand.Ore,
+			OreColor = hand.OreColor,
+			RockColor = hand.RockColor,
+			BaseCycle = hand.BaseCycle,
+			BaseYield = BigNum.new(hand.BaseYield),
+			UnlockCost = BigNum.new(hand.UnlockCost),
+			Tier = 1,
+		}
+	else
+		local last = Config.Shafts[#Config.Shafts]
+		local steps = index - #Config.Shafts
+		local h = (index * 0.061) % 1
+		info = {
+			Index = index,
+			Name = ore.Name .. (if tier > 1 then " " .. roman(tier) else "") .. "-Ader",
+			Ore = ore.Name .. (if tier > 1 then " " .. roman(tier) else ""),
+			OreColor = ore.Color,
+			RockColor = Color3.fromHSV(h, 0.32, 0.42),
+			BaseCycle = math.min(gen.CycleMax, gen.CycleBase + gen.CyclePerLevel * index),
+			BaseYield = BigNum.mul(BigNum.new(last.BaseYield), BigNum.powNum(gen.YieldGrowth, steps)),
+			UnlockCost = BigNum.mul(BigNum.new(last.UnlockCost), BigNum.powNum(gen.UnlockGrowth, steps)),
+			Tier = tier,
+		}
+	end
+	shaftCache[index] = info
+	return info
+end
+
+--- Abschnitt (Seite der Grube), in dem eine Ebene liegt
+function Formulas.sectionOf(index: number): number
+	return (index - 1) // Config.ShaftGen.SectionSize + 1
+end
+
+function Formulas.sectionCount(): number
+	return math.ceil(Config.ShaftCount / Config.ShaftGen.SectionSize)
+end
+
+----------------------------------------------------------------------
 -- Station-Keys
 ----------------------------------------------------------------------
 function Formulas.shaftKey(index: number): string
@@ -36,7 +119,7 @@ function Formulas.parseKey(key: string): (string?, number?)
 	local idx = string.match(key, "^Shaft:(%d+)$")
 	if idx then
 		local n = tonumber(idx)
-		if n and n >= 1 and n <= #Config.Shafts then
+		if n and n >= 1 and n <= Config.ShaftCount then
 			return "Shaft", n
 		end
 	end
@@ -69,7 +152,7 @@ end
 function Formulas.stationDisplayName(key: string): string
 	local area, index = Formulas.parseKey(key)
 	if area == "Shaft" and index then
-		return string.format("Ebene %d: %s", index, Config.Shafts[index].Name)
+		return string.format("Ebene %d: %s", index, Formulas.shaftDef(index).Name)
 	elseif area == "Elevator" then
 		return "Aufzug"
 	elseif area == "Warehouse" then
@@ -111,6 +194,15 @@ local function linearMult(def: Config.TrackDef?, level: number): number
 	return mult
 end
 
+--- Aufzug und Händler wachsen mit der Tiefe der Mine mit (tiefere Erze sind
+--- wertvoller -> mehr Wert pro Ladung). Exponent < 1, damit Upgrades wichtig bleiben.
+local function depthFactor(data: PlayerData): BigNum
+	local n = math.max(#data.Shafts, 1)
+	local ratio = BigNum.div(Formulas.shaftDef(n).BaseYield, Formulas.shaftDef(1).BaseYield)
+	return BigNum.pow(ratio, Config.Elevator.DepthExponent)
+end
+Formulas.depthFactor = depthFactor
+
 local function loadFor(def: Config.TrackDef?, level: number): BigNum
 	if not def then
 		return BigNum.new(1)
@@ -141,13 +233,29 @@ function Formulas.rarityIndex(id: string): number
 	return 1
 end
 
+-- Index StationKey -> Manager (wichtig bei hunderten Managern).
+-- Wird neu gebaut, wenn sich die Manager-Liste ändert; nach Änderungen an
+-- AssignedTo muss Formulas.invalidateManagers(data) aufgerufen werden.
+type ManagerIndex = { List: { ManagerData }, Count: number, Map: { [string]: ManagerData } }
+local managerIndex: { [any]: ManagerIndex } = setmetatable({}, { __mode = "k" }) :: any
+
+function Formulas.invalidateManagers(data: PlayerData)
+	managerIndex[data] = nil
+end
+
 function Formulas.managerFor(data: PlayerData, key: string): ManagerData?
+	local idx = managerIndex[data]
+	if idx and idx.List == data.Managers and idx.Count == #data.Managers then
+		return idx.Map[key]
+	end
+	local map: { [string]: ManagerData } = {}
 	for _, m in data.Managers do
-		if m.AssignedTo == key then
-			return m
+		if m.AssignedTo then
+			map[m.AssignedTo] = m
 		end
 	end
-	return nil
+	managerIndex[data] = { List = data.Managers, Count = #data.Managers, Map = map }
+	return map[key]
 end
 
 function Formulas.findManager(data: PlayerData, id: string): ManagerData?
@@ -253,13 +361,13 @@ end
 ----------------------------------------------------------------------
 --- Erzwert pro Zyklus OHNE aktive Fähigkeit (Basis für Lagerplatz)
 function Formulas.shaftBaseYield(data: PlayerData, index: number): BigNum
-	local def = Config.Shafts[index]
 	local station = data.Shafts[index]
-	if not def or not station then
+	if not station then
 		return BigNum.zero()
 	end
+	local def = Formulas.shaftDef(index)
 	local valueMult = linearMult(Formulas.trackDef("Shaft", "Value"), Formulas.level(station, "Value"))
-	return BigNum.mulNum(BigNum.new(def.BaseYield), valueMult)
+	return BigNum.mulNum(def.BaseYield, valueMult)
 end
 
 function Formulas.shaftYield(data: PlayerData, index: number, ctx: CalcContext): BigNum
@@ -269,11 +377,11 @@ function Formulas.shaftYield(data: PlayerData, index: number, ctx: CalcContext):
 end
 
 function Formulas.shaftDuration(data: PlayerData, index: number, ctx: CalcContext, ignoreAbility: boolean?): number
-	local def = Config.Shafts[index]
 	local station = data.Shafts[index]
-	if not def or not station then
+	if not station then
 		return math.huge
 	end
+	local def = Formulas.shaftDef(index)
 	local manager = Formulas.managerFor(data, Formulas.shaftKey(index))
 	local speed = linearMult(Formulas.trackDef("Shaft", "Speed"), Formulas.level(station, "Speed"))
 	speed *= passiveSpeed(manager)
@@ -298,9 +406,14 @@ end
 ----------------------------------------------------------------------
 -- Aufzug
 ----------------------------------------------------------------------
+function Formulas.elevatorBaseTrip(data: PlayerData): number
+	local shafts = math.min(#data.Shafts, Config.Elevator.TripShaftCap)
+	return Config.Elevator.BaseTrip + Config.Elevator.PerShaftTrip * shafts
+end
+
 function Formulas.elevatorDuration(data: PlayerData, ctx: CalcContext, ignoreAbility: boolean?): number
 	local manager = Formulas.managerFor(data, "Elevator")
-	local base = Config.Elevator.BaseTrip + Config.Elevator.PerShaftTrip * #data.Shafts
+	local base = Formulas.elevatorBaseTrip(data)
 	local speed = linearMult(Formulas.trackDef("Elevator", "Speed"), Formulas.level(data.Elevator, "Speed"))
 	speed *= passiveSpeed(manager)
 	if not ignoreAbility then
@@ -312,7 +425,10 @@ end
 
 function Formulas.elevatorLoad(data: PlayerData, ctx: CalcContext, ignoreAbility: boolean?): BigNum
 	local manager = Formulas.managerFor(data, "Elevator")
-	local load = loadFor(Formulas.trackDef("Elevator", "Capacity"), Formulas.level(data.Elevator, "Capacity"))
+	local load = BigNum.mul(
+		loadFor(Formulas.trackDef("Elevator", "Capacity"), Formulas.level(data.Elevator, "Capacity")),
+		depthFactor(data)
+	)
 	if not ignoreAbility then
 		load = BigNum.mulNum(load, abilityMult(manager, "Capacity", ctx.Now))
 	end
@@ -335,7 +451,10 @@ end
 
 function Formulas.warehouseLoad(data: PlayerData, ctx: CalcContext, ignoreAbility: boolean?): BigNum
 	local manager = Formulas.managerFor(data, "Warehouse")
-	local load = loadFor(Formulas.trackDef("Warehouse", "Capacity"), Formulas.level(data.Warehouse, "Capacity"))
+	local load = BigNum.mul(
+		loadFor(Formulas.trackDef("Warehouse", "Capacity"), Formulas.level(data.Warehouse, "Capacity")),
+		depthFactor(data)
+	)
 	if not ignoreAbility then
 		load = BigNum.mulNum(load, abilityMult(manager, "Capacity", ctx.Now))
 	end
@@ -380,11 +499,11 @@ end
 ----------------------------------------------------------------------
 -- Upgrade-Kosten
 ----------------------------------------------------------------------
-local function trackBaseCost(area: string, index: number?, def: Config.TrackDef): number
+local function trackBaseCost(area: string, index: number?, def: Config.TrackDef): BigNum
 	if area == "Shaft" and index then
-		return (def.CostFactor or 1) * Config.Shafts[index].BaseYield
+		return BigNum.mulNum(Formulas.shaftDef(index).BaseYield, def.CostFactor or 1)
 	end
-	return def.BaseCost or 10
+	return BigNum.new(def.BaseCost or 10)
 end
 
 --- Rabatt durch aktive "Sparfuchs"-Fähigkeit
@@ -397,8 +516,8 @@ function Formulas.discountFor(data: PlayerData, key: string, now: number): numbe
 end
 
 --- Kosten für n Level ab aktuellem Level (geometrische Reihe)
-local function costForLevels(base: number, growth: number, level: number, n: number, discount: number): BigNum
-	local first = BigNum.mul(BigNum.new(base), BigNum.powNum(growth, level - 1))
+local function costForLevels(base: BigNum, growth: number, level: number, n: number, discount: number): BigNum
+	local first = BigNum.mul(base, BigNum.powNum(growth, level - 1))
 	local seriesFactor: BigNum
 	if growth == 1 then
 		seriesFactor = BigNum.new(n)
@@ -480,9 +599,9 @@ function Formulas.trackEffectText(data: PlayerData, key: string, trackId: string
 	if trackId == "Speed" then
 		local base: number
 		if area == "Shaft" and index then
-			base = Config.Shafts[index].BaseCycle
+			base = Formulas.shaftDef(index).BaseCycle
 		elseif area == "Elevator" then
-			base = Config.Elevator.BaseTrip + Config.Elevator.PerShaftTrip * #data.Shafts
+			base = Formulas.elevatorBaseTrip(data)
 		else
 			base = Config.Warehouse.BaseCycle
 		end
@@ -490,7 +609,7 @@ function Formulas.trackEffectText(data: PlayerData, key: string, trackId: string
 		return string.format("%.2fs / Zyklus", duration)
 	elseif trackId == "Value" then
 		if area == "Shaft" and index then
-			local yield = BigNum.mulNum(BigNum.new(Config.Shafts[index].BaseYield), linearMult(def, level))
+			local yield = BigNum.mulNum(Formulas.shaftDef(index).BaseYield, linearMult(def, level))
 			return BigNum.formatMoney(yield, Config.CurrencySymbol) .. " / Zyklus"
 		end
 		return string.format("x%.2f Preis", linearMult(def, level))
@@ -499,7 +618,7 @@ function Formulas.trackEffectText(data: PlayerData, key: string, trackId: string
 			local cycles = (def.BaseCycles or 10) + (def.PerLevel or 0) * (level - 1)
 			return string.format("%d Zyklen Lager", cycles)
 		end
-		return BigNum.format(loadFor(def, level)) .. " pro Fahrt"
+		return BigNum.format(BigNum.mul(loadFor(def, level), depthFactor(data))) .. " pro Fahrt"
 	end
 	return ""
 end
@@ -509,11 +628,10 @@ end
 ----------------------------------------------------------------------
 function Formulas.nextShaftCost(data: PlayerData): BigNum?
 	local nextIndex = #data.Shafts + 1
-	local def = Config.Shafts[nextIndex]
-	if not def then
+	if nextIndex > Config.ShaftCount then
 		return nil
 	end
-	return BigNum.new(def.UnlockCost)
+	return Formulas.shaftDef(nextIndex).UnlockCost
 end
 
 ----------------------------------------------------------------------
@@ -525,11 +643,14 @@ function Formulas.rebirthPointsFor(runCash: BigNum): number
 	if BigNum.lt(ratio, BigNum.one()) then
 		return 0
 	end
-	local l = BigNum.log10(ratio) * cfg.PointsExponent
-	if l > 300 then
-		l = 300
-	end
-	return math.floor(cfg.PointsScale * 10 ^ l)
+	return math.floor(cfg.PointsScale * (1 + BigNum.log10(ratio)) ^ cfg.PointsPower)
+end
+
+--- Wie viel muss in einem Durchlauf verdient werden, um diese Punktzahl zu bekommen?
+function Formulas.rebirthCashFor(points: number): BigNum
+	local cfg = Config.Rebirth
+	local l = (math.max(points, 0) / cfg.PointsScale) ^ (1 / cfg.PointsPower) - 1
+	return BigNum.mulNum(BigNum.fromLog10(math.max(l, 0)), cfg.MinRunCash)
 end
 
 function Formulas.rebirthGems(points: number): number

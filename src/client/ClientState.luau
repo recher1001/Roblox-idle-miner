@@ -56,6 +56,15 @@ end
 
 function ClientState.start()
 	Net.event("Sync").OnClientEvent:Connect(function(snapshot: Types.Snapshot)
+		-- große Listen kommen nur bei Änderungen: sonst die alten übernehmen
+		local previous = ClientState.Snapshot
+		local data = snapshot.Data :: any
+		if data.Shafts == nil then
+			data.Shafts = if previous then previous.Data.Shafts else {}
+		end
+		if data.Managers == nil then
+			data.Managers = if previous then previous.Data.Managers else {}
+		end
 		ClientState.Snapshot = snapshot
 		ClientState.Changed:Fire(snapshot)
 	end)

@@ -239,7 +239,12 @@ function MineService.start()
 	NetService.register("Work", { Key = "string" }, function(session, payload)
 		return MineService.work(session, payload.Key)
 	end)
+	NetService.register("SetSection", { Section = "integer" }, function(session, payload)
+		PlotService.setSection(session, payload.Section)
+		return true
+	end)
 	NetService.register("RequestSync", {}, function(session)
+		SessionService.resendAll(session)
 		SessionService.syncNow(session)
 		return true
 	end)

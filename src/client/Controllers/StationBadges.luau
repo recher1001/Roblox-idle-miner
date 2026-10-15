@@ -141,12 +141,7 @@ local function needsTap(key: string, station: Model): boolean
 	if area == "Shaft" then
 		return station:GetAttribute("Full") ~= true
 	elseif area == "Elevator" then
-		for _, shaft in data.Shafts do
-			if not BigNum.isZero(BigNum.from(shaft.Stock)) then
-				return true
-			end
-		end
-		return false
+		return snap.ShaftStockAny
 	elseif area == "Warehouse" then
 		return not BigNum.isZero(BigNum.from(data.Elevator.Stock))
 	end
@@ -164,9 +159,28 @@ local function hideOwnStealPrompt(plot: Model?)
 	end
 end
 
+-- Klick auf das "🔒 Ebene X"-Schild öffnet das Freischalten
+local connectedUnlock: { [Instance]: boolean } = {}
+local function connectUnlockSign(plot: Model?)
+	if not plot then
+		return
+	end
+	local click = plot:FindFirstChild("UnlockClick", true)
+	if click and click:IsA("ClickDetector") and not connectedUnlock[click] then
+		connectedUnlock[click] = true
+		click.MouseClick:Connect(function()
+			PanelManager.open("Upgrades", "Unlock")
+		end)
+		click.Destroying:Once(function()
+			connectedUnlock[click] = nil
+		end)
+	end
+end
+
 local function sync()
 	local plot = PlotLocator.ownPlot()
 	hideOwnStealPrompt(plot)
+	connectUnlockSign(plot)
 	local snap = ClientState.Snapshot
 	local wanted: { [string]: boolean } = {}
 	if plot and snap then

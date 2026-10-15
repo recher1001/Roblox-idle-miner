@@ -45,6 +45,12 @@ export type Session = {
 	LastRobbedAt: number,
 	Ending: boolean,
 	Admin: Types.AdminInfo?, -- gesetzt vom AdminService
+	ViewSection: number, -- angezeigter Abschnitt der Grube (0 = automatisch der tiefste)
+	-- Versionen für sparsamen Sync (große Listen nur bei Änderung senden)
+	ShaftsVersion: number,
+	ManagersVersion: number,
+	SentShaftsVersion: number,
+	SentManagersVersion: number,
 }
 
 type Hook = { Priority: number, Fn: (Session) -> () }
@@ -179,12 +185,60 @@ function SessionService.effect(player: Player, kind: string, payload: { [string]
 	Net.event("Effect"):FireClient(player, kind, payload)
 end
 
+--- Ebenen haben sich geändert (Level, Freischaltung, Rebirth ...)
+function SessionService.shaftsChanged(session: Session)
+	session.ShaftsVersion += 1
+	session.Dirty = true
+end
+
+--- Manager haben sich geändert (eingestellt, zugewiesen, Fähigkeit ...)
+function SessionService.managersChanged(session: Session)
+	Formulas.invalidateManagers(session.Data)
+	session.ManagersVersion += 1
+	session.Dirty = true
+end
+
+--- Angezeigter Abschnitt der Grube (Seite mit SectionSize Ebenen)
+function SessionService.currentSection(session: Session): number
+	local count = #session.Data.Shafts
+	local maxSection = Formulas.sectionOf(math.max(count, 1))
+	if session.ViewSection >= 1 then
+		return math.clamp(session.ViewSection, 1, maxSection)
+	end
+	return maxSection
+end
+
 local function buildSnapshot(session: Session): Types.Snapshot
 	local event = SessionService.getEvent()
 	local now = Clock.now()
+	local data = session.Data
+	-- Flache Kopie: Ebenen- und Manager-Listen (bis zu 500/600 Einträge) nur
+	-- senden, wenn sie sich geändert haben. Der Client behält sonst die alten.
+	local wire = table.clone(data) :: any
+	if session.SentShaftsVersion == session.ShaftsVersion then
+		wire.Shafts = nil
+	else
+		local light = table.create(#data.Shafts)
+		for i, shaft in data.Shafts do
+			light[i] = { Levels = shaft.Levels }
+		end
+		wire.Shafts = light
+		session.SentShaftsVersion = session.ShaftsVersion
+	end
+	if session.SentManagersVersion == session.ManagersVersion then
+		wire.Managers = nil
+	else
+		session.SentManagersVersion = session.ManagersVersion
+	end
+	local stockAny = false
+	for _, shaft in data.Shafts do
+		if not BigNum.isZero(shaft.Stock) then
+			stockAny = true
+			break
+		end
+	end
 	return {
-		Data = session.Data,
-		Cycles = session.Cycles,
+		Data = wire,
 		Passes = session.Passes,
 		ProtectedUntil = session.JoinTime + Config.Steal.NewPlayerProtection,
 		LockedUntil = session.LockedUntil,
@@ -192,7 +246,16 @@ local function buildSnapshot(session: Session): Types.Snapshot
 		PlotIndex = session.PlotIndex,
 		DailyAvailable = Formulas.dailyAvailable(session.Data, now),
 		Admin = session.Admin,
+		Section = SessionService.currentSection(session),
+		ShaftStockAny = stockAny,
 	}
+end
+
+--- Nach einem Neuladen des Clients alles neu senden
+function SessionService.resendAll(session: Session)
+	session.SentShaftsVersion = 0
+	session.SentManagersVersion = 0
+	session.Dirty = true
 end
 
 function SessionService.syncNow(session: Session)
@@ -255,6 +318,11 @@ local function onPlayerAdded(player: Player)
 		LastRobbedAt = 0,
 		Ending = false,
 		Admin = nil,
+		ViewSection = 0,
+		ShaftsVersion = 1,
+		ManagersVersion = 1,
+		SentShaftsVersion = 0,
+		SentManagersVersion = 0,
 	}
 	sessions[player] = session
 	setupLeaderstats(session)

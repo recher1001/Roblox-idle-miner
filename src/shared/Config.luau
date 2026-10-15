@@ -130,6 +130,52 @@ Config.Shafts = {
 } :: { ShaftDef }
 
 ----------------------------------------------------------------------
+-- Ab Ebene 11 werden die Ebenen automatisch erzeugt (bis Config.ShaftCount).
+-- Jede Ebene: Ertrag x YieldGrowth, Freischalten x UnlockGrowth gegenüber
+-- der vorherigen. Die Erze wiederholen sich mit Stufe (Kohle II, Kohle III ...).
+-- In der Grube sind immer SectionSize Ebenen gleichzeitig sichtbar (Abschnitt).
+----------------------------------------------------------------------
+Config.ShaftCount = 500
+
+export type OreDef = { Name: string, Color: Color3 }
+
+Config.ShaftGen = {
+	YieldGrowth = 11,
+	UnlockGrowth = 12,
+	CycleBase = 8.5,
+	CyclePerLevel = 0.004, -- tiefere Ebenen brauchen minimal länger
+	CycleMax = 12,
+	SectionSize = 10,
+	Ores = {
+		{ Name = "Kohle", Color = Color3.fromRGB(60, 60, 70) },
+		{ Name = "Kupfer", Color = Color3.fromRGB(255, 120, 40) },
+		{ Name = "Eisen", Color = Color3.fromRGB(190, 190, 200) },
+		{ Name = "Silber", Color = Color3.fromRGB(230, 240, 255) },
+		{ Name = "Gold", Color = Color3.fromRGB(255, 210, 0) },
+		{ Name = "Smaragd", Color = Color3.fromRGB(0, 230, 110) },
+		{ Name = "Rubin", Color = Color3.fromRGB(255, 20, 70) },
+		{ Name = "Saphir", Color = Color3.fromRGB(30, 110, 255) },
+		{ Name = "Diamant", Color = Color3.fromRGB(140, 250, 255) },
+		{ Name = "Mythril", Color = Color3.fromRGB(190, 80, 255) },
+		{ Name = "Obsidian", Color = Color3.fromRGB(90, 40, 140) },
+		{ Name = "Amethyst", Color = Color3.fromRGB(200, 90, 255) },
+		{ Name = "Topas", Color = Color3.fromRGB(255, 170, 30) },
+		{ Name = "Jade", Color = Color3.fromRGB(40, 220, 150) },
+		{ Name = "Platin", Color = Color3.fromRGB(225, 230, 250) },
+		{ Name = "Titan", Color = Color3.fromRGB(120, 180, 230) },
+		{ Name = "Opal", Color = Color3.fromRGB(255, 160, 230) },
+		{ Name = "Bernstein", Color = Color3.fromRGB(255, 140, 0) },
+		{ Name = "Kristall", Color = Color3.fromRGB(120, 255, 255) },
+		{ Name = "Meteorit", Color = Color3.fromRGB(255, 90, 40) },
+		{ Name = "Plasma", Color = Color3.fromRGB(255, 40, 220) },
+		{ Name = "Sternenstaub", Color = Color3.fromRGB(255, 245, 120) },
+		{ Name = "Void", Color = Color3.fromRGB(140, 0, 255) },
+		{ Name = "Chrono", Color = Color3.fromRGB(0, 255, 190) },
+		{ Name = "Kosmos", Color = Color3.fromRGB(60, 140, 255) },
+	} :: { OreDef },
+}
+
+----------------------------------------------------------------------
 -- Upgrade-Tracks pro Stationstyp
 --   Jeder Track hat ein eigenes Level (Start 1).
 --   Kosten für Level L -> L+1:  BaseCost * Growth^(L-1)
@@ -261,6 +307,9 @@ Config.Tracks = {
 Config.Elevator = {
 	BaseTrip = 3, -- Grundzeit einer Fahrt
 	PerShaftTrip = 0.8, -- zusätzliche Zeit pro freigeschaltetem Schacht
+	TripShaftCap = 10, -- ab so vielen Schächten wird die Fahrt nicht länger
+	-- Ladung von Aufzug/Händler wächst mit (Ertrag tiefste Ebene / Ertrag Ebene 1) ^ DepthExponent
+	DepthExponent = 0.85,
 }
 
 Config.Warehouse = {
@@ -302,7 +351,7 @@ Config.Managers = {
 		Warehouse = 60,
 	} :: { [string]: number },
 	HireCostGrowth = 3.5, -- pro bereits eingestelltem Manager dieses Bereichs
-	MaxOwned = 30,
+	MaxOwned = 600, -- genug für 500 Ebenen + Aufzug + Händler
 	-- Seltenheiten (Gewicht = relative Wahrscheinlichkeit)
 	Rarities = {
 		{
@@ -415,13 +464,14 @@ Config.Avatars = {
 
 ----------------------------------------------------------------------
 -- Rebirth / Prestige
---   Punkte = floor(PointsScale * (RunCash / MinRunCash) ^ PointsExponent)
+--   Punkte = floor(PointsScale * (1 + log10(RunCash / MinRunCash)) ^ PointsPower)
+--   (logarithmisch: lohnt sich immer, explodiert aber nicht)
 --   Multiplikator = 1 + Punkte * MultiplierPerPoint
 ----------------------------------------------------------------------
 Config.Rebirth = {
 	MinRunCash = 1e6, -- so viel muss in diesem Durchlauf verdient worden sein
 	PointsScale = 10,
-	PointsExponent = 1 / 3,
+	PointsPower = 2.6,
 	MultiplierPerPoint = 0.05,
 	GemsBase = 10,
 	GemsPerTenPoints = 1,
@@ -674,8 +724,18 @@ Config.Admin = {
 			Icon = "🧞",
 			Description = "Fliegen! Leertaste/▲ hoch, Q/▼ runter",
 		},
-		{ Id = "Speed", Name = "Super-Speed", Icon = "⚡", Description = "Rennt 4x so schnell" },
-		{ Id = "Jump", Name = "Mega-Sprung", Icon = "🦘", Description = "Springt riesig hoch" },
+		{
+			Id = "Speed",
+			Name = "Super-Speed",
+			Icon = "⚡",
+			Description = "Item im Inventar: ausrüsten = 4x schneller",
+		},
+		{
+			Id = "Jump",
+			Name = "Mega-Sprung",
+			Icon = "🦘",
+			Description = "Item im Inventar: ausrüsten = Mega-Sprung",
+		},
 		{ Id = "Shield", Name = "Unbestehlbar", Icon = "🛡️", Description = "Niemand kann dich bestehlen" },
 		{ Id = "MineTurbo", Name = "Turbo-Mine", Icon = "🚀", Description = "Alle Arbeiter 3x schneller" },
 		{ Id = "GoldenTouch", Name = "Goldener Händler", Icon = "💰", Description = "3x Einkommen" },
@@ -733,27 +793,27 @@ Config.World = {
 -- Beleuchtung
 ----------------------------------------------------------------------
 Config.Lighting = {
-	ClockTime = 16.8,
-	Brightness = 2.4,
-	Ambient = Color3.fromRGB(70, 62, 58),
-	OutdoorAmbient = Color3.fromRGB(128, 116, 104),
-	FogColor = Color3.fromRGB(196, 170, 140),
-	Bloom = { Intensity = 0.6, Size = 28, Threshold = 1.6 },
+	ClockTime = 14.6,
+	Brightness = 3,
+	Ambient = Color3.fromRGB(96, 84, 120),
+	OutdoorAmbient = Color3.fromRGB(150, 140, 170),
+	FogColor = Color3.fromRGB(190, 170, 255),
+	Bloom = { Intensity = 0.8, Size = 30, Threshold = 1.4 },
 	ColorCorrection = {
-		Brightness = 0.02,
-		Contrast = 0.12,
-		Saturation = 0.18,
-		TintColor = Color3.fromRGB(255, 244, 230),
+		Brightness = 0.05,
+		Contrast = 0.16,
+		Saturation = 0.38, -- kräftige, satte Farben
+		TintColor = Color3.fromRGB(255, 246, 255),
 	},
 	Atmosphere = {
-		Density = 0.32,
-		Offset = 0.15,
-		Color = Color3.fromRGB(214, 184, 150),
-		Decay = Color3.fromRGB(120, 92, 74),
-		Glare = 0.3,
-		Haze = 1.6,
+		Density = 0.26,
+		Offset = 0.12,
+		Color = Color3.fromRGB(200, 180, 255),
+		Decay = Color3.fromRGB(150, 100, 200),
+		Glare = 0.4,
+		Haze = 1.2,
 	},
-	SunRays = { Intensity = 0.06, Spread = 0.8 },
+	SunRays = { Intensity = 0.08, Spread = 0.9 },
 }
 
 ----------------------------------------------------------------------

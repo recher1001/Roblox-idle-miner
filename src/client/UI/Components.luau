@@ -6,6 +6,7 @@
 	abgerundete Ecken, Farbverläufe, Outlines, Hover/Klick/Pop-Tweens.
 ]]
 
+local Anim = require(script.Parent.Anim)
 local Theme = require(script.Parent.Theme)
 local Util = require(script.Parent.Util)
 local Sounds = require(script.Parent.Parent.Controllers.Sounds)
@@ -28,6 +29,8 @@ export type ButtonProps = {
 	OnClick: (() -> ())?,
 	Sound: string?,
 	ZIndex: number?,
+	Shine: boolean?, -- regelmäßiger Glanzstreifen
+	Rainbow: boolean?, -- animierter Regenbogen-Rand
 }
 
 export type Button = {
@@ -46,8 +49,8 @@ function Components.button(props: ButtonProps): Button
 	local enabled = true
 
 	local scale: UIScale = Util.new("UIScale")
-	local gradient = Util.gradient(Theme.lighten(color, 0.18), Theme.darken(color, 0.12))
-	local stroke = Util.stroke(Theme.darken(color, 0.45), 2.5)
+	local gradient = Util.gradient(Theme.lighten(color, 0.25), Theme.darken(color, 0.08))
+	local stroke = Util.stroke(Theme.darken(color, 0.5), 3)
 
 	local label: TextLabel = Util.label({
 		Name = "Label",
@@ -90,6 +93,16 @@ function Components.button(props: ButtonProps): Button
 		Parent = button,
 	}, { Util.corner(Theme.Radius.Medium - 3) })
 
+	if props.Shine then
+		Anim.shine(button, Theme.Radius.Medium)
+	end
+	if props.Rainbow then
+		stroke.Color = Color3.new(1, 1, 1)
+		stroke.Thickness = 4
+		local rainbow: UIGradient = Util.new("UIGradient", { Color = Theme.Rainbow, Parent = stroke })
+		Anim.rotate(rainbow, 120)
+	end
+
 	local hovering = false
 	button.MouseEnter:Connect(function()
 		hovering = true
@@ -124,8 +137,10 @@ function Components.button(props: ButtonProps): Button
 
 	local self: Button
 	local function applyColor(c: Color3)
-		gradient.Color = ColorSequence.new(Theme.lighten(c, 0.18), Theme.darken(c, 0.12))
-		stroke.Color = Theme.darken(c, 0.45)
+		gradient.Color = ColorSequence.new(Theme.lighten(c, 0.25), Theme.darken(c, 0.08))
+		if not props.Rainbow then
+			stroke.Color = Theme.darken(c, 0.5)
+		end
 	end
 	self = {
 		Instance = button,
@@ -173,8 +188,11 @@ function Components.card(props: { [string]: any }, accent: Color3?): Frame
 	end
 	local frame: Frame = Util.new("Frame", defaults, {
 		Util.corner(Theme.Radius.Medium),
-		Util.gradient(Theme.Colors.CardLight, Theme.Colors.Card),
-		Util.stroke(accent or Theme.Colors.Stroke, 2, if accent then 0.1 else 0.4),
+		Util.gradient(
+			if accent then Theme.Colors.CardLight:Lerp(accent, 0.18) else Theme.Colors.CardLight,
+			Theme.Colors.Card
+		),
+		Util.stroke(accent or Theme.Colors.Stroke, if accent then 3 else 2, if accent then 0 else 0.55),
 	})
 	return frame
 end
@@ -250,7 +268,7 @@ function Components.window(title: string, icon: string, accent: Color3, size: Ve
 		Visible = false,
 	}, {
 		Util.corner(Theme.Radius.Large),
-		Util.gradient(Theme.Colors.Panel, Theme.darken(Theme.Colors.Panel, 0.1)),
+		Util.gradient(Theme.Colors.PanelTop, Theme.Colors.PanelBottom, 60),
 		scale,
 	})
 	-- Rahmen außerhalb der CanvasGroup würde abgeschnitten -> innen zeichnen
@@ -260,7 +278,14 @@ function Components.window(title: string, icon: string, accent: Color3, size: Ve
 		BackgroundTransparency = 1,
 		ZIndex = 10,
 		Parent = root,
-	}, { Util.corner(Theme.Radius.Large), Util.stroke(accent, 3) })
+	}, { Util.corner(Theme.Radius.Large), Util.stroke(Color3.new(1, 1, 1), 5) })
+	local border = root:FindFirstChild("Border")
+	local borderStroke = border and border:FindFirstChildOfClass("UIStroke")
+	if borderStroke then
+		-- animierter Regenbogen-Rand
+		local rainbow: UIGradient = Util.new("UIGradient", { Color = Theme.Rainbow, Parent = borderStroke })
+		Anim.rotate(rainbow, 60)
+	end
 
 	-- Kopfzeile
 	local header: Frame = Util.new("Frame", {
@@ -270,8 +295,9 @@ function Components.window(title: string, icon: string, accent: Color3, size: Ve
 		Parent = root,
 	}, {
 		Util.corner(Theme.Radius.Large),
-		Util.gradient(Theme.lighten(accent, 0.1), Theme.darken(accent, 0.3)),
+		Util.gradient(Theme.lighten(accent, 0.2), Theme.darken(accent, 0.15)),
 	})
+	Anim.shine(header, Theme.Radius.Large, 4.5)
 	-- untere Ecken der Kopfzeile gerade machen
 	Util.new("Frame", {
 		Size = UDim2.new(1, 0, 0, 20),
@@ -279,7 +305,7 @@ function Components.window(title: string, icon: string, accent: Color3, size: Ve
 		BorderSizePixel = 0,
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		Parent = header,
-	}, { Util.gradient(Theme.darken(accent, 0.22), Theme.darken(accent, 0.3)) })
+	}, { Util.gradient(Theme.darken(accent, 0.1), Theme.darken(accent, 0.15)) })
 
 	local titleLabel = Util.label({
 		Name = "Title",
@@ -289,22 +315,33 @@ function Components.window(title: string, icon: string, accent: Color3, size: Ve
 		Font = Theme.Fonts.Title,
 		TextSize = Theme.TextSize.Title,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 2,
+		ZIndex = 5,
 		Parent = header,
 	})
 	Util.textStroke(2).Parent = titleLabel
 
+	-- großes, rundes X oben rechts zum Schließen
 	local close = Components.button({
 		Text = "✕",
 		Color = Theme.Colors.Red,
-		Size = UDim2.fromOffset(48, 48),
-		Position = UDim2.new(1, -14, 0.5, 0),
-		AnchorPoint = Vector2.new(1, 0.5),
-		TextSize = 24,
+		Size = UDim2.fromOffset(58, 58),
+		Position = UDim2.new(1, -8, 0, 3),
+		AnchorPoint = Vector2.new(1, 0),
+		TextSize = 34,
+		Font = Theme.Fonts.Number,
 		Parent = header,
 		OnClick = onClose,
-		ZIndex = 3,
+		ZIndex = 20,
 	})
+	local closeCorner = close.Instance:FindFirstChildOfClass("UICorner")
+	if closeCorner then
+		closeCorner.CornerRadius = UDim.new(1, 0)
+	end
+	local closeStroke = close.Instance:FindFirstChildOfClass("UIStroke")
+	if closeStroke then
+		closeStroke.Color = Color3.new(1, 1, 1)
+		closeStroke.Thickness = 3.5
+	end
 
 	local content: Frame = Util.new("Frame", {
 		Name = "Content",
@@ -369,8 +406,19 @@ function Components.pill(props: { [string]: any }, accent: Color3): Frame
 	return Util.new("Frame", defaults, {
 		Util.round(),
 		Util.gradient(Theme.Colors.PillTop, Theme.Colors.PillBottom),
-		Util.stroke(accent, 2.5),
+		Util.stroke(accent, 3),
 	})
+end
+
+--- Macht den Rand eines Elements zu einem animierten Regenbogen
+function Components.rainbowBorder(gui: GuiObject, thickness: number?)
+	local existing = gui:FindFirstChildOfClass("UIStroke")
+	local s: UIStroke = if existing then existing else Util.stroke(Color3.new(1, 1, 1), thickness or 3)
+	s.Parent = gui
+	s.Color = Color3.new(1, 1, 1)
+	s.Thickness = thickness or s.Thickness
+	local rainbow: UIGradient = Util.new("UIGradient", { Color = Theme.Rainbow, Parent = s })
+	Anim.rotate(rainbow, 90)
 end
 
 return Components

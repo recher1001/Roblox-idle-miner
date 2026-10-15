@@ -13,6 +13,7 @@
 ]]
 
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -576,6 +577,60 @@ function AdminPanel.start()
 		end,
 	})
 	openButton.Instance.Visible = false
+
+	-- 🪄 Admin-Stab: auf einen Spieler klicken -> Admin-Menü für diesen Spieler
+	local function hookWand(tool: Instance)
+		if not tool:IsA("Tool") or tool:GetAttribute("PowerTool") ~= "AdminWand" or tool:GetAttribute("WandHooked") then
+			return
+		end
+		tool:SetAttribute("WandHooked", true)
+		tool.Activated:Connect(function()
+			local camera = workspace.CurrentCamera
+			if not camera then
+				return
+			end
+			local mouse = UserInputService:GetMouseLocation()
+			local ray = camera:ViewportPointToRay(mouse.X, mouse.Y)
+			local params = RaycastParams.new()
+			params.FilterType = Enum.RaycastFilterType.Exclude
+			params.FilterDescendantsInstances = { localPlayer.Character :: Instance }
+			local hit = workspace:Raycast(ray.Origin, ray.Direction * 500, params)
+			local target: Player? = nil
+			if hit then
+				local model = hit.Instance:FindFirstAncestorOfClass("Model")
+				while model and not target do
+					target = Players:GetPlayerFromCharacter(model)
+					model = model:FindFirstAncestorOfClass("Model")
+				end
+			end
+			targetUserId = if target then target.UserId else localPlayer.UserId
+			currentTab = "Player"
+			if PanelManager.isOpen("Admin") then
+				rebuildTargets()
+				AdminPanel.refreshTarget()
+			else
+				PanelManager.open("Admin")
+			end
+		end)
+	end
+	local function watch(container: Instance)
+		for _, child in container:GetChildren() do
+			hookWand(child)
+		end
+		container.ChildAdded:Connect(hookWand)
+	end
+	task.spawn(function()
+		watch(localPlayer:WaitForChild("Backpack"))
+	end)
+	localPlayer.CharacterAdded:Connect(function(character)
+		watch(character)
+		task.spawn(function()
+			watch(localPlayer:WaitForChild("Backpack"))
+		end)
+	end)
+	if localPlayer.Character then
+		watch(localPlayer.Character)
+	end
 
 	ClientState.Changed:Connect(onSnapshot)
 	Players.PlayerAdded:Connect(function()

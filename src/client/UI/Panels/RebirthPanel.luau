@@ -55,11 +55,14 @@ local function update()
 			Formulas.rebirthGems(points)
 		)
 		-- Fortschritt zum nächsten Punkt
-		local nextNeeded = cfg.MinRunCash * ((points + 1) / cfg.PointsScale) ^ (1 / cfg.PointsExponent)
-		local prevNeeded = cfg.MinRunCash * (points / cfg.PointsScale) ^ (1 / cfg.PointsExponent)
-		local ratio = (BigNum.toNumber(data.RunCash) - prevNeeded) / math.max(1, nextNeeded - prevNeeded)
+		local nextNeeded = Formulas.rebirthCashFor(points + 1)
+		local prevNeeded = Formulas.rebirthCashFor(points)
+		-- Fortschritt im Log-Raum (funktioniert auch bei riesigen Zahlen)
+		local lo = BigNum.log10(prevNeeded)
+		local hi = BigNum.log10(nextNeeded)
+		local ratio = (BigNum.log10(data.RunCash) - lo) / math.max(hi - lo, 1e-9)
 		progress.Set(ratio, true)
-		progress.SetText("Nächster Punkt bei " .. money(BigNum.new(nextNeeded)))
+		progress.SetText("Nächster Punkt bei " .. money(nextNeeded))
 		rebirthButton.SetEnabled(true)
 	else
 		gainLabel.Text = "Verdiene mehr, um Prestige-Punkte zu bekommen!"

@@ -101,7 +101,7 @@ function ManagerService.hire(session: Session, area: string): (boolean, string?,
 	data.NextManagerId += 1
 	data.ManagersHired[area] = (data.ManagersHired[area] or 0) + 1
 	table.insert(data.Managers, manager)
-	session.Dirty = true
+	SessionService.managersChanged(session)
 	PlotService.updateVisuals(session)
 	Net.event("ManagerReveal"):FireClient(session.Player, manager)
 	return true, nil, manager
@@ -122,7 +122,7 @@ function ManagerService.assign(session: Session, managerId: string, key: string)
 		current.AssignedTo = nil -- Tausch: alter Manager geht in die Reserve
 	end
 	manager.AssignedTo = key
-	session.Dirty = true
+	SessionService.managersChanged(session)
 	PlotService.updateVisuals(session)
 	return true, nil
 end
@@ -133,7 +133,7 @@ function ManagerService.unassign(session: Session, managerId: string): (boolean,
 		return false, "Manager nicht gefunden"
 	end
 	manager.AssignedTo = nil
-	session.Dirty = true
+	SessionService.managersChanged(session)
 	PlotService.updateVisuals(session)
 	return true, nil
 end
@@ -143,7 +143,7 @@ function ManagerService.fire(session: Session, managerId: string): (boolean, str
 	for i, m in data.Managers do
 		if m.Id == managerId then
 			table.remove(data.Managers, i)
-			session.Dirty = true
+			SessionService.managersChanged(session)
 			PlotService.updateVisuals(session)
 			return true, nil
 		end
@@ -175,7 +175,7 @@ function ManagerService.activateAbility(session: Session, managerId: string): (b
 		return false, "Fähigkeit lädt noch: " .. Formulas.formatDuration(manager.CooldownUntil - now)
 	end
 	activate(session, manager, now)
-	session.Dirty = true
+	SessionService.managersChanged(session)
 	PlotService.updateVisuals(session)
 	return true, nil
 end
@@ -192,7 +192,7 @@ function ManagerService.activateAll(session: Session): (boolean, string?, any?)
 	if count == 0 then
 		return false, "Keine Fähigkeit bereit"
 	end
-	session.Dirty = true
+	SessionService.managersChanged(session)
 	PlotService.updateVisuals(session)
 	return true, string.format("%d Fähigkeiten aktiviert!", count), count
 end

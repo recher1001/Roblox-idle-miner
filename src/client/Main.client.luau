@@ -34,7 +34,7 @@ local StationBadges = require(Controllers.StationBadges)
 ClientState.start()
 Root.start()
 
-HUD.start(CameraController.toggle)
+HUD.start(CameraController.toggle, CameraController.isActive)
 UpgradesPanel.start()
 ManagersPanel.start()
 RebirthPanel.start()

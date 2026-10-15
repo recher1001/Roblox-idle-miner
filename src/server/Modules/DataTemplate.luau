@@ -185,7 +185,7 @@ function DataTemplate.sanitize(raw: any): PlayerData
 
 	if type(raw.Shafts) == "table" and #raw.Shafts >= 1 then
 		data.Shafts = {}
-		for i = 1, math.min(#raw.Shafts, #Config.Shafts) do
+		for i = 1, math.min(#raw.Shafts, Formulas.shaftCount()) do
 			data.Shafts[i] = sanitizeStation(raw.Shafts[i], "Shaft")
 		end
 	end

@@ -12,30 +12,45 @@ local Theme = {}
 Theme.ReferenceSize = Vector2.new(1280, 720)
 
 Theme.Colors = {
-	Overlay = Color3.fromRGB(28, 26, 44),
-	Panel = Color3.fromRGB(100, 92, 146),
-	PanelTop = Color3.fromRGB(130, 120, 184),
-	Card = Color3.fromRGB(122, 114, 174),
-	CardLight = Color3.fromRGB(148, 140, 202),
-	Stroke = Color3.fromRGB(214, 206, 255),
+	-- Hintergründe: kräftiges Violett/Blau (satt, nicht grau)
+	Overlay = Color3.fromRGB(16, 8, 40),
+	Panel = Color3.fromRGB(64, 34, 176),
+	PanelTop = Color3.fromRGB(112, 56, 255),
+	PanelBottom = Color3.fromRGB(28, 84, 220),
+	Card = Color3.fromRGB(86, 52, 214),
+	CardLight = Color3.fromRGB(126, 88, 255),
+	Stroke = Color3.fromRGB(255, 255, 255),
 	Text = Color3.fromRGB(255, 255, 255),
-	SubText = Color3.fromRGB(232, 228, 250),
-	Muted = Color3.fromRGB(196, 190, 224),
-	PillTop = Color3.fromRGB(128, 118, 182),
-	PillBottom = Color3.fromRGB(94, 86, 140),
-	Track = Color3.fromRGB(70, 64, 106),
-	Selected = Color3.fromRGB(255, 196, 54),
-	Gold = Color3.fromRGB(255, 196, 54),
-	Green = Color3.fromRGB(78, 210, 104),
-	Blue = Color3.fromRGB(64, 156, 255),
-	Purple = Color3.fromRGB(170, 96, 255),
-	Pink = Color3.fromRGB(255, 92, 160),
-	Red = Color3.fromRGB(238, 76, 76),
-	Orange = Color3.fromRGB(255, 140, 50),
-	Disabled = Color3.fromRGB(150, 146, 170),
-	Money = Color3.fromRGB(120, 255, 140),
-	Gem = Color3.fromRGB(196, 120, 255),
+	SubText = Color3.fromRGB(244, 238, 255),
+	Muted = Color3.fromRGB(222, 210, 255),
+	PillTop = Color3.fromRGB(122, 70, 255),
+	PillBottom = Color3.fromRGB(62, 34, 196),
+	Track = Color3.fromRGB(34, 16, 100),
+	Selected = Color3.fromRGB(255, 214, 0),
+	-- Vordergrund / Buttons: Neon-Farben mit hoher Sättigung
+	Gold = Color3.fromRGB(255, 200, 0),
+	Green = Color3.fromRGB(20, 232, 90),
+	Blue = Color3.fromRGB(0, 158, 255),
+	Cyan = Color3.fromRGB(0, 226, 255),
+	Purple = Color3.fromRGB(178, 56, 255),
+	Pink = Color3.fromRGB(255, 46, 170),
+	Red = Color3.fromRGB(255, 44, 78),
+	Orange = Color3.fromRGB(255, 122, 0),
+	Lime = Color3.fromRGB(150, 255, 0),
+	Disabled = Color3.fromRGB(130, 116, 182),
+	Money = Color3.fromRGB(110, 255, 120),
+	Gem = Color3.fromRGB(226, 120, 255),
 }
+
+-- Regenbogen für animierte Ränder
+Theme.Rainbow = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 46, 120)),
+	ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 170, 0)),
+	ColorSequenceKeypoint.new(0.4, Color3.fromRGB(160, 255, 0)),
+	ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 226, 255)),
+	ColorSequenceKeypoint.new(0.8, Color3.fromRGB(150, 70, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 46, 120)),
+})
 
 Theme.Fonts = {
 	Title = Enum.Font.FredokaOne,

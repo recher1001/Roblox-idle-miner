@@ -210,7 +210,7 @@ local function assign(session: Session)
 	plot.Model:SetAttribute("OwnerName", session.Player.DisplayName)
 	setSign(plot, "⛏ Mine von " .. session.Player.DisplayName)
 
-	MineBuilder.buildMine(plot.Model, plot.Origin, #session.Data.Shafts)
+	MineBuilder.buildMine(plot.Model, plot.Origin, #session.Data.Shafts, SessionService.currentSection(session))
 	connectAllStations(session, plot)
 	connectDepotPrompt(session, plot)
 
@@ -243,9 +243,21 @@ function PlotService.refreshLevels(session: Session)
 	if not plot then
 		return
 	end
-	MineBuilder.syncLevels(plot.Model, plot.Origin, #session.Data.Shafts)
+	MineBuilder.syncLevels(plot.Model, plot.Origin, #session.Data.Shafts, SessionService.currentSection(session))
 	connectAllStations(session, plot)
+	-- laufende Zyklen auf die (neu gebauten) Stationen übertragen
+	for key, cycle in session.Cycles do
+		PlotService.setCycle(session, key, cycle)
+	end
 	PlotService.updateVisuals(session)
+	session.Dirty = true
+end
+
+--- Anderen Abschnitt der Grube anzeigen (0 = automatisch der tiefste)
+function PlotService.setSection(session: Session, section: number)
+	local maxSection = Formulas.sectionOf(math.max(#session.Data.Shafts, 1))
+	session.ViewSection = if section <= 0 then 0 else math.clamp(section, 1, maxSection)
+	PlotService.refreshLevels(session)
 end
 
 ----------------------------------------------------------------------
@@ -296,11 +308,14 @@ function PlotService.updateVisuals(session: Session)
 	local now = Clock.now()
 	local symbol = Config.CurrencySymbol
 
-	for i = 1, #data.Shafts do
+	-- nur die Ebenen des angezeigten Abschnitts haben ein Model
+	local size = Config.ShaftGen.SectionSize
+	local first = (SessionService.currentSection(session) - 1) * size + 1
+	for i = first, math.min(first + size - 1, #data.Shafts) do
 		local key = Formulas.shaftKey(i)
 		local station = PlotService.getStation(session, key)
 		if station then
-			local def = Config.Shafts[i]
+			local def = Formulas.shaftDef(i)
 			local stock = data.Shafts[i].Stock
 			local cap = Formulas.shaftCapacity(data, i)
 			local full = BigNum.gte(stock, cap)

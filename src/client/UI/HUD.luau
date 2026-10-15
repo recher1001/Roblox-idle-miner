@@ -20,6 +20,7 @@ local Types = require(Shared.Types)
 
 local ClientState = require(script.Parent.Parent.ClientState)
 local Remote = require(script.Parent.Parent.Remote)
+local Anim = require(script.Parent.Anim)
 local Components = require(script.Parent.Components)
 local FloatingText = require(script.Parent.FloatingText)
 local PanelManager = require(script.Parent.PanelManager)
@@ -80,6 +81,7 @@ local function buildTopBar(parent: Frame)
 	-- Geld
 	cashScale = Util.new("UIScale")
 	local cash = Components.pill({ Size = UDim2.fromOffset(330, 76), LayoutOrder = 2, Parent = bar }, Theme.Colors.Gold)
+	Components.rainbowBorder(cash, 4)
 	cashScale.Parent = cash
 	Util.label({
 		Size = UDim2.fromOffset(60, 76),
@@ -221,13 +223,14 @@ local function menuButton(
 	onClick: () -> ()
 ): Components.Button
 	local b = Components.button({
-		Text = string.format('<font size="34">%s</font>\n%s', icon, text),
+		Text = string.format('<font size="40">%s</font>\n%s', icon, text),
 		Color = color,
-		Size = UDim2.fromOffset(96, 86),
-		TextSize = 15,
+		Size = UDim2.fromOffset(106, 94),
+		TextSize = 17,
 		LayoutOrder = order,
 		Parent = parent,
 		OnClick = onClick,
+		Shine = true,
 	})
 	b.Label.LineHeight = 0.95
 	return b
@@ -248,18 +251,18 @@ local function notificationDot(button: Components.Button): Frame
 	return dot
 end
 
-local function buildSidebar(parent: Frame, onCamera: () -> ())
+local function buildSidebar(parent: Frame)
 	-- 2x3-Raster: kompakt, damit es auf Handys nicht mit dem Joystick kollidiert
 	local side: Frame = Util.new("Frame", {
 		Name = "Sidebar",
-		Size = UDim2.fromOffset(204, 290),
+		Size = UDim2.fromOffset(222, 310),
 		Position = UDim2.new(0, 14, 0.5, -10),
 		AnchorPoint = Vector2.new(0, 0.5),
 		BackgroundTransparency = 1,
 		Parent = parent,
 	}, {
 		Util.new("UIGridLayout", {
-			CellSize = UDim2.fromOffset(96, 86),
+			CellSize = UDim2.fromOffset(106, 94),
 			CellPadding = UDim2.fromOffset(10, 10),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
@@ -280,7 +283,6 @@ local function buildSidebar(parent: Frame, onCamera: () -> ())
 	local daily = menuButton(side, 5, "🎁", "Täglich", Theme.Colors.Green, function()
 		PanelManager.toggle("Daily")
 	end)
-	menuButton(side, 6, "🎥", "Ansicht", Theme.Colors.Orange, onCamera)
 
 	menuDots.Managers = notificationDot(managers)
 	menuDots.Rebirth = notificationDot(rebirth)
@@ -405,11 +407,50 @@ function HUD.onSpend(amount: BigNum)
 	)
 end
 
-function HUD.start(onCamera: () -> ())
+--- Großer, gut sichtbarer Button für die 2D-Minenansicht (unten Mitte)
+local function buildCameraButton(parent: Frame, onCamera: () -> boolean, isActive: () -> boolean)
+	local holder: Frame = Util.new("Frame", {
+		Name = "CameraButton",
+		Size = UDim2.fromOffset(270, 76),
+		Position = UDim2.new(0.5, 0, 1, -14),
+		AnchorPoint = Vector2.new(0.5, 1),
+		BackgroundTransparency = 1,
+		Parent = parent,
+	})
+	local pulse: UIScale = Util.new("UIScale", { Parent = holder })
+	Anim.pulse(pulse, 0.04, 3)
+	local button: Components.Button
+	button = Components.button({
+		Text = "🎥 2D-MINENANSICHT",
+		Color = Theme.Colors.Cyan,
+		Size = UDim2.fromScale(1, 1),
+		TextSize = 22,
+		Parent = holder,
+		Shine = true,
+		Rainbow = true,
+		OnClick = function()
+			local active = onCamera()
+			button.SetText(if active then "⬅ ZURÜCK ZUM SPIEL" else "🎥 2D-MINENANSICHT")
+			button.SetColor(if active then Theme.Colors.Orange else Theme.Colors.Cyan)
+		end,
+	})
+	-- Text aktuell halten (die Ansicht kann auch anders geschlossen werden)
+	task.spawn(function()
+		while holder.Parent do
+			task.wait(0.3)
+			local active = isActive()
+			button.SetText(if active then "⬅ ZURÜCK ZUM SPIEL" else "🎥 2D-MINENANSICHT")
+			button.SetColor(if active then Theme.Colors.Orange else Theme.Colors.Cyan)
+		end
+	end)
+end
+
+function HUD.start(onCamera: () -> boolean, isCameraActive: () -> boolean)
 	local hud = Root.layer("Hud")
 	buildTopBar(hud)
-	buildSidebar(hud, onCamera)
+	buildSidebar(hud)
 	buildActions(hud)
+	buildCameraButton(hud, onCamera, isCameraActive)
 
 	ClientState.Changed:Connect(onSnapshot)
 	if ClientState.Snapshot then

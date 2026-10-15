@@ -49,6 +49,9 @@ function RebirthService.rebirth(session: Session): (boolean, string?)
 	end
 	SessionService.addGems(session, gems)
 
+	session.ViewSection = 0
+	SessionService.shaftsChanged(session)
+	SessionService.managersChanged(session)
 	MineService.resetCycles(session)
 	PlotService.refreshLevels(session)
 	session.Dirty = true

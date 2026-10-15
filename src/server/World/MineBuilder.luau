@@ -28,11 +28,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Formulas = require(Shared.Formulas)
 
 local MineBuilder = {}
 
 local LH = Config.World.LevelHeight
-local MAX_LEVELS = #Config.Shafts
+local MAX_LEVELS = Config.ShaftGen.SectionSize -- sichtbare Ebenen pro Abschnitt
 local PIT_MIN_X, PIT_MAX_X = -10, 38
 local PIT_BACK_Z, PIT_FRONT_Z = -40, -14
 local LEVEL_MIN_X = -4
@@ -569,12 +570,13 @@ function MineBuilder.setCrateFill(crate: Model, ratio: number, color: Color3?)
 	end
 end
 
-local function buildLevel(mine: Instance, origin: CFrame, i: number): Model
-	local def = Config.Shafts[i]
-	local y = levelY(i)
+local function buildLevel(mine: Instance, origin: CFrame, i: number, slot: number): Model
+	local def = Formulas.shaftDef(i)
+	local y = levelY(slot)
 	local m = model("Shaft_" .. i, mine)
 	m:SetAttribute("Key", "Shaft:" .. i)
 	m:SetAttribute("Index", i)
+	m:SetAttribute("Slot", slot)
 
 	-- Boden (Holzplanken auf Fels)
 	box(
@@ -707,7 +709,8 @@ function MineBuilder.setMinerCount(
 	miners:ClearAllChildren()
 	miners:SetAttribute("Count", count)
 	miners:SetAttribute("Signature", signature)
-	local y = levelY(index)
+	local slot = level:GetAttribute("Slot")
+	local y = levelY(if type(slot) == "number" then slot else index)
 	local spacing = (PIT_MAX_X - 8) / math.max(count, 1)
 	local created = {}
 	for n = 1, count do
@@ -725,9 +728,9 @@ function MineBuilder.setMinerCount(
 	return created
 end
 
-local function buildLockedLevel(mine: Instance, origin: CFrame, i: number): Model
-	local def = Config.Shafts[i]
-	local y = levelY(i)
+local function buildLockedLevel(mine: Instance, origin: CFrame, i: number, slot: number): Model
+	local def = Formulas.shaftDef(i)
+	local y = levelY(slot)
 	local m = model("Locked", mine)
 	m:SetAttribute("Index", i)
 	box(
@@ -1234,54 +1237,80 @@ end
 -- Öffentliche API
 ----------------------------------------------------------------------
 --- Baut den besitzerabhängigen Teil der Mine (Aufzug, Lager, Ebenen)
-function MineBuilder.buildMine(plot: Model, origin: CFrame, shaftCount: number): Folder
+function MineBuilder.buildMine(plot: Model, origin: CFrame, shaftCount: number, section: number): Folder
 	local existing = plot:FindFirstChild("Mine")
 	if existing then
 		existing:Destroy()
 	end
+	plot:SetAttribute("Section", 0)
 	local mine = folder("Mine", plot)
 	buildElevator(mine, origin)
 	buildWarehouse(mine, origin)
-	MineBuilder.syncLevels(plot, origin, shaftCount)
+	MineBuilder.syncLevels(plot, origin, shaftCount, section)
 	return mine
 end
 
---- Passt die Ebenen an die Anzahl freigeschalteter Schächte an
-function MineBuilder.syncLevels(plot: Model, origin: CFrame, shaftCount: number)
+local function isLevelObject(name: string): boolean
+	return string.sub(name, 1, 6) == "Shaft_" or name == "Locked" or string.sub(name, 1, 9) == "RockFill_"
+end
+
+--- Zeigt einen Abschnitt (MAX_LEVELS Ebenen) der Grube an.
+--- Abschnitt 1 = Ebenen 1-10, Abschnitt 2 = Ebenen 11-20 ...
+function MineBuilder.syncLevels(plot: Model, origin: CFrame, shaftCount: number, section: number)
 	local mine = plot:FindFirstChild("Mine")
 	if not mine then
 		return
 	end
-	for i = 1, MAX_LEVELS do
-		local level = mine:FindFirstChild("Shaft_" .. i)
-		local rock = mine:FindFirstChild("RockFill_" .. i)
+	local total = Formulas.shaftCount()
+	local first = (section - 1) * MAX_LEVELS + 1
+	-- Abschnitt gewechselt: alle Ebenen neu aufbauen
+	if plot:GetAttribute("Section") ~= section then
+		for _, child in mine:GetChildren() do
+			if isLevelObject(child.Name) then
+				child:Destroy()
+			end
+		end
+		plot:SetAttribute("Section", section)
+	end
+
+	local wanted: { [string]: boolean } = {}
+	local lockedIndex: number? = nil
+	for slot = 1, MAX_LEVELS do
+		local i = first + slot - 1
+		local rock = mine:FindFirstChild("RockFill_" .. slot)
 		if i <= shaftCount then
+			wanted["Shaft_" .. i] = true
 			if rock then
 				rock:Destroy()
 			end
-			if not level then
-				buildLevel(mine, origin, i)
+			if not mine:FindFirstChild("Shaft_" .. i) then
+				buildLevel(mine, origin, i, slot)
 			end
-		else
-			if level then
-				level:Destroy()
-			end
-			if i > shaftCount + 1 and not rock then
-				buildRockFill(mine, origin, i)
-			elseif i == shaftCount + 1 and rock then
+		elseif i == shaftCount + 1 and i <= total then
+			lockedIndex = i
+			if rock then
 				rock:Destroy()
 			end
+		elseif not rock then
+			buildRockFill(mine, origin, slot)
+		end
+	end
+	-- Ebenen außerhalb des Abschnitts entfernen (z. B. nach Rebirth)
+	for _, child in mine:GetChildren() do
+		if string.sub(child.Name, 1, 6) == "Shaft_" and not wanted[child.Name] then
+			child:Destroy()
 		end
 	end
 	local locked = mine:FindFirstChild("Locked")
-	if locked and locked:GetAttribute("Index") ~= shaftCount + 1 then
+	if locked and locked:GetAttribute("Index") ~= lockedIndex then
 		locked:Destroy()
 		locked = nil
 	end
-	if not locked and shaftCount < MAX_LEVELS then
-		buildLockedLevel(mine, origin, shaftCount + 1)
+	if not locked and lockedIndex then
+		buildLockedLevel(mine, origin, lockedIndex, lockedIndex - first + 1)
 	end
-	plot:SetAttribute("LevelCount", shaftCount)
+	plot:SetAttribute("LevelCount", math.clamp(shaftCount - first + 1, 1, MAX_LEVELS))
+	plot:SetAttribute("FirstLevel", first)
 end
 
 --- Entfernt die Mine (Plot wird frei)

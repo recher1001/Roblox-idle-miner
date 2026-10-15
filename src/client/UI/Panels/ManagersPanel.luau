@@ -43,6 +43,7 @@ local tabButtons: { [string]: Components.Button } = {}
 local abilityButtons: { [string]: Components.Button } = {} -- ManagerId -> Button
 local hireButton: Components.Button? = nil
 local currentTab = "Shaft"
+local shaftSection = 1 -- Seite der Schacht-Liste (je SectionSize Ebenen)
 local expandedKey: string? = nil
 local lastSignature = ""
 
@@ -390,7 +391,7 @@ local function reserveCount(data: Types.PlayerData): number
 end
 
 local function signature(data: Types.PlayerData): string
-	local parts = { currentTab, tostring(#data.Shafts), tostring(expandedKey) }
+	local parts = { currentTab, tostring(#data.Shafts), tostring(expandedKey), tostring(shaftSection) }
 	for _, m in data.Managers do
 		table.insert(parts, m.Id .. ":" .. tostring(m.AssignedTo))
 	end
@@ -476,7 +477,57 @@ function ManagersPanel.rebuild(force: boolean?)
 	else
 		hireCard(currentTab, 0)
 		if currentTab == "Shaft" then
-			for i = 1, #data.Shafts do
+			local size = Config.ShaftGen.SectionSize
+			local maxSection = Formulas.sectionOf(math.max(#data.Shafts, 1))
+			shaftSection = math.clamp(shaftSection, 1, maxSection)
+			local first = (shaftSection - 1) * size + 1
+			-- Seitenwahl
+			local pager: Frame = Util.new("Frame", {
+				Size = UDim2.new(1, 0, 0, 56),
+				LayoutOrder = 1,
+				BackgroundTransparency = 1,
+				Parent = list,
+			})
+			Components.button({
+				Text = "◀",
+				Color = Theme.Colors.Purple,
+				Size = UDim2.fromOffset(70, 54),
+				TextSize = 26,
+				Parent = pager,
+				OnClick = function()
+					shaftSection -= 1
+					ManagersPanel.rebuild(true)
+				end,
+			}).SetEnabled(shaftSection > 1)
+			local pageLabel = Util.label({
+				Size = UDim2.new(1, -160, 1, 0),
+				Position = UDim2.fromOffset(80, 0),
+				Text = string.format(
+					"Ebenen %d–%d  (Seite %d/%d)",
+					first,
+					math.min(first + size - 1, #data.Shafts),
+					shaftSection,
+					maxSection
+				),
+				Font = Theme.Fonts.Title,
+				TextSize = 22,
+				Parent = pager,
+			})
+			Util.textStroke(1.5).Parent = pageLabel
+			Components.button({
+				Text = "▶",
+				Color = Theme.Colors.Purple,
+				Size = UDim2.fromOffset(70, 54),
+				Position = UDim2.fromScale(1, 0),
+				AnchorPoint = Vector2.new(1, 0),
+				TextSize = 26,
+				Parent = pager,
+				OnClick = function()
+					shaftSection += 1
+					ManagersPanel.rebuild(true)
+				end,
+			}).SetEnabled(shaftSection < maxSection)
+			for i = first, math.min(first + size - 1, #data.Shafts) do
 				stationRow(data, Formulas.shaftKey(i), i)
 			end
 		else

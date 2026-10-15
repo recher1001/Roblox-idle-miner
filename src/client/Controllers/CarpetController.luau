@@ -15,8 +15,6 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared").Config)
 
-local ClientState = require(script.Parent.Parent.ClientState)
-local Remote = require(script.Parent.Parent.Remote)
 local Components = require(script.Parent.Parent.UI.Components)
 local Root = require(script.Parent.Parent.UI.Root)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -26,7 +24,6 @@ local CarpetController = {}
 
 local player = Players.LocalPlayer
 local controls: any = nil
-local toggleButton: Components.Button
 local flyButtons: Frame
 local upHeld = false
 local downHeld = false
@@ -113,20 +110,6 @@ local function holdButton(text: string, order: number, setter: (boolean) -> ())
 end
 
 function CarpetController.start()
-	toggleButton = Components.button({
-		Text = "🧞 Teppich",
-		Color = Theme.Colors.Purple,
-		Size = UDim2.fromOffset(186, 62),
-		Position = UDim2.new(1, -14, 0.5, 120),
-		AnchorPoint = Vector2.new(1, 0),
-		TextSize = 20,
-		Parent = Root.layer("Hud"),
-		OnClick = function()
-			Remote.send("ToggleCarpet")
-		end,
-	})
-	toggleButton.Instance.Visible = false
-
 	flyButtons = Util.new("Frame", {
 		Name = "FlyButtons",
 		Size = UDim2.fromOffset(90, 160),
@@ -143,10 +126,6 @@ function CarpetController.start()
 		downHeld = v
 	end)
 
-	ClientState.Changed:Connect(function(snap)
-		local has = snap.Data.Powers ~= nil and snap.Data.Powers.Carpet == true
-		toggleButton.Instance.Visible = has
-	end)
 	player.CharacterAdded:Connect(function()
 		stopFlying()
 	end)
@@ -159,7 +138,6 @@ function CarpetController.start()
 		elseif not active and movers then
 			stopFlying()
 		end
-		toggleButton.SetText(if active then "🧞 Landen" else "🧞 Teppich")
 		local m = movers
 		local camera = workspace.CurrentCamera
 		if not m or not camera then
