@@ -112,7 +112,7 @@ function DailyPanel.start()
 			Size = UDim2.new(1, -8, 0, 36),
 			Position = UDim2.fromOffset(4, 114),
 			Text = string.format("+%s Einkommen", Formulas.formatDuration(reward.IncomeSeconds)),
-			TextSize = 13,
+			TextSize = 14,
 			TextWrapped = true,
 			TextColor3 = Theme.Colors.Money,
 			Parent = card,

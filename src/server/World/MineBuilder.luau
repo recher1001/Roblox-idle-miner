@@ -187,15 +187,15 @@ function MineBuilder.makeInfoBillboard(anchor: BasePart, accent: Color3): Billbo
 	local frame = Instance.new("Frame")
 	frame.Name = "Panel"
 	frame.Size = UDim2.fromScale(1, 1)
-	frame.BackgroundColor3 = Color3.fromRGB(24, 22, 30)
-	frame.BackgroundTransparency = 0.15
+	frame.BackgroundColor3 = Color3.fromRGB(72, 66, 106)
+	frame.BackgroundTransparency = 0.05
 	frame.Parent = gui
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0.25, 0)
 	corner.Parent = frame
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = accent
-	stroke.Thickness = 2
+	stroke.Color = accent:Lerp(Color3.new(1, 1, 1), 0.3)
+	stroke.Thickness = 3
 	stroke.Parent = frame
 
 	local title = Instance.new("TextLabel")
@@ -206,6 +206,7 @@ function MineBuilder.makeInfoBillboard(anchor: BasePart, accent: Color3): Billbo
 	title.Font = Enum.Font.FredokaOne
 	title.TextScaled = true
 	title.TextColor3 = Color3.new(1, 1, 1)
+	title.TextStrokeTransparency = 0.35
 	title.Text = ""
 	title.Parent = frame
 
@@ -216,7 +217,9 @@ function MineBuilder.makeInfoBillboard(anchor: BasePart, accent: Color3): Billbo
 	sub.Position = UDim2.fromScale(0.03, 0.54)
 	sub.Font = Enum.Font.GothamBold
 	sub.TextScaled = true
-	sub.TextColor3 = accent
+	-- Akzentfarbe nur aufgehellt nutzen, damit auch dunkle Erze (Kohle) lesbar bleiben
+	sub.TextColor3 = accent:Lerp(Color3.new(1, 1, 1), 0.65)
+	sub.TextStrokeTransparency = 0.35
 	sub.Text = ""
 	sub.Parent = frame
 

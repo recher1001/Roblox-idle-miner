@@ -140,7 +140,7 @@ function RebirthPanel.start()
 		Size = UDim2.new(1, -20, 0, 24),
 		Position = UDim2.fromOffset(10, 336),
 		Text = "",
-		TextSize = 14,
+		TextSize = 15,
 		TextColor3 = Theme.Colors.Muted,
 		Parent = c,
 	})

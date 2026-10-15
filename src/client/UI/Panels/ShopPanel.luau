@@ -95,7 +95,7 @@ local function itemCard(
 		Size = UDim2.new(1, -110, 0, 44),
 		Position = UDim2.fromOffset(98, 42),
 		Text = desc,
-		TextSize = 14,
+		TextSize = 15,
 		TextWrapped = true,
 		TextColor3 = Theme.Colors.SubText,
 		TextXAlignment = Enum.TextXAlignment.Left,

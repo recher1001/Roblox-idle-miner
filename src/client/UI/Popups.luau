@@ -48,11 +48,11 @@ local function shell(size: Vector2, accent: Color3): Shell
 		Parent = dim,
 	}, {
 		Util.corner(Theme.Radius.Large),
-		Util.gradient(Theme.Colors.PanelTop, Theme.darken(Theme.Colors.Panel, 0.2)),
+		Util.gradient(Theme.Colors.PanelTop, Theme.Colors.Panel),
 		Util.stroke(accent, 3),
 		scale,
 	})
-	Util.tween(dim, 0.2, { BackgroundTransparency = 0.4 })
+	Util.tween(dim, 0.2, { BackgroundTransparency = 0.55 })
 	Util.tween(scale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
 	local closed = false
 	return {
@@ -216,7 +216,7 @@ local function playReveal(m: Types.ManagerData)
 		Active = true,
 		Parent = Root.layer("Popup"),
 	})
-	Util.tween(dim, 0.25, { BackgroundTransparency = 0.25 })
+	Util.tween(dim, 0.25, { BackgroundTransparency = 0.4 })
 
 	-- Strahlen hinter der Karte
 	local rays: Frame = Util.new("Frame", {
@@ -258,7 +258,7 @@ local function playReveal(m: Types.ManagerData)
 		Parent = dim,
 	}, {
 		Util.corner(Theme.Radius.Large),
-		Util.gradient(Color3.fromRGB(70, 64, 96), Color3.fromRGB(30, 27, 44)),
+		Util.gradient(Theme.Colors.PanelTop, Theme.Colors.Panel),
 		Util.stroke(Color3.new(1, 1, 1), 4, 0.3),
 		cardScale,
 	})

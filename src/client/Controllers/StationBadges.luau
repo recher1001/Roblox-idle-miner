@@ -61,8 +61,8 @@ local function makeBadge(key: string, station: Model): Badge?
 	local barBack: Frame = Util.new("Frame", {
 		Size = UDim2.fromScale(0.62, 0.16),
 		Position = UDim2.fromScale(0.05, 0.12),
-		BackgroundColor3 = Color3.fromRGB(20, 18, 28),
-		BackgroundTransparency = 0.2,
+		BackgroundColor3 = Theme.Colors.Track,
+		BackgroundTransparency = 0.05,
 		Parent = gui,
 	}, { Util.round(), Util.stroke(Color3.new(0, 0, 0), 1.5, 0.3) })
 	local fill: Frame = Util.new("Frame", {

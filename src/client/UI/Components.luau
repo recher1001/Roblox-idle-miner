@@ -137,7 +137,7 @@ function Components.button(props: ButtonProps): Button
 			end
 			enabled = value
 			applyColor(if value then color else Theme.Colors.Disabled)
-			label.TextTransparency = if value then 0 else 0.25
+			label.TextTransparency = if value then 0 else 0.1
 		end,
 		SetColor = function(c: Color3)
 			color = c
@@ -190,7 +190,7 @@ export type ProgressBar = {
 
 function Components.progressBar(props: { [string]: any }, color: Color3): ProgressBar
 	local defaults: { [string]: any } = {
-		BackgroundColor3 = Color3.fromRGB(20, 18, 28),
+		BackgroundColor3 = Theme.Colors.Track,
 		Size = UDim2.new(1, 0, 0, 22),
 	}
 	for k, v in props do
@@ -250,7 +250,7 @@ function Components.window(title: string, icon: string, accent: Color3, size: Ve
 		Visible = false,
 	}, {
 		Util.corner(Theme.Radius.Large),
-		Util.gradient(Theme.Colors.Panel, Theme.darken(Theme.Colors.Panel, 0.25)),
+		Util.gradient(Theme.Colors.Panel, Theme.darken(Theme.Colors.Panel, 0.1)),
 		scale,
 	})
 	-- Rahmen außerhalb der CanvasGroup würde abgeschnitten -> innen zeichnen
@@ -368,7 +368,7 @@ function Components.pill(props: { [string]: any }, accent: Color3): Frame
 	end
 	return Util.new("Frame", defaults, {
 		Util.round(),
-		Util.gradient(Color3.fromRGB(46, 42, 66), Color3.fromRGB(26, 23, 38)),
+		Util.gradient(Theme.Colors.PillTop, Theme.Colors.PillBottom),
 		Util.stroke(accent, 2.5),
 	})
 end

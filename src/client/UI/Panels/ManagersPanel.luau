@@ -99,7 +99,7 @@ local function managerInfo(parent: Instance, m: ManagerData, position: UDim2, wi
 			Formulas.abilityDescription(m),
 			rarity.PassiveSpeed
 		),
-		TextSize = 14,
+		TextSize = 15,
 		TextColor3 = Theme.Colors.SubText,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextTruncate = Enum.TextTruncate.AtEnd,
@@ -251,7 +251,7 @@ local function reserveRow(m: ManagerData, order: number)
 		Size = UDim2.fromOffset(120, 20),
 		Position = UDim2.new(1, -150, 0, 6),
 		Text = AREA_INFO[m.Area].Icon .. " " .. AREA_INFO[m.Area].Name,
-		TextSize = 13,
+		TextSize = 14,
 		TextColor3 = Theme.Colors.Muted,
 		Parent = card,
 	})
@@ -407,7 +407,7 @@ function ManagersPanel.start()
 		Size = UDim2.new(1, 0, 0, 22),
 		Position = UDim2.fromOffset(0, 76),
 		Text = "Chancen: " .. table.concat(chances, "  "),
-		TextSize = 14,
+		TextSize = 15,
 		TextColor3 = Theme.Colors.SubText,
 		Parent = window.Content,
 	})

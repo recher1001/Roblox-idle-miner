@@ -71,7 +71,7 @@ function Toasts.show(text: string, kind: string?, duration: number?)
 		Parent = c,
 	}, {
 		Util.round(),
-		Util.gradient(Color3.fromRGB(44, 40, 62), Color3.fromRGB(24, 22, 34)),
+		Util.gradient(Theme.Colors.PillTop, Theme.Colors.PillBottom),
 		Util.stroke(color, 2.5),
 		Util.padding(0, 22),
 		scale,
