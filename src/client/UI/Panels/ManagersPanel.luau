@@ -2,10 +2,11 @@
 --[[
 	ManagersPanel
 	=============
-	Oben:   Manager einstellen (Schacht / Aufzug / Händler) mit Preis
-	Liste:  jede Station mit ihrem Manager (Fähigkeit aktivieren, abziehen)
-	        oder "Zuweisen" aus der Reserve
-	Reserve: nicht zugewiesene Manager (entlassen)
+	Übersichtlich in Reitern:
+	  ⛏ Schächte | 🛗 Aufzug | 🏪 Händler | 📦 Reserve
+	Jeder Stations-Reiter zeigt oben "Einstellen" (Preis + Chancen) und darunter
+	jede Station: Manager mit Seltenheit, Fähigkeit (aktivieren) oder "Zuweisen".
+	Die Reserve listet alle nicht zugewiesenen Manager (entlassen möglich).
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -29,17 +30,19 @@ type ManagerData = Types.ManagerData
 
 local ManagersPanel = {}
 
-local AREA_INFO: { [string]: { Name: string, Icon: string } } = {
-	Shaft = { Name = "Schacht", Icon = "⛏" },
-	Elevator = { Name = "Aufzug", Icon = "🛗" },
-	Warehouse = { Name = "Händler", Icon = "🏪" },
+local AREA_INFO: { [string]: { Name: string, Icon: string, Plural: string } } = {
+	Shaft = { Name = "Schacht", Icon = "⛏", Plural = "Schächte" },
+	Elevator = { Name = "Aufzug", Icon = "🛗", Plural = "Aufzug" },
+	Warehouse = { Name = "Händler", Icon = "🏪", Plural = "Händler" },
 }
-local AREA_ORDER = { "Warehouse", "Elevator", "Shaft" }
+local TABS = { "Shaft", "Elevator", "Warehouse", "Reserve" }
 
 local window: Components.Window
 local list: ScrollingFrame
-local hireButtons: { [string]: Components.Button } = {}
+local tabButtons: { [string]: Components.Button } = {}
 local abilityButtons: { [string]: Components.Button } = {} -- ManagerId -> Button
+local hireButton: Components.Button? = nil
+local currentTab = "Shaft"
 local expandedKey: string? = nil
 local lastSignature = ""
 
@@ -47,29 +50,54 @@ local function money(b: BigNum.BigNum): string
 	return BigNum.formatMoney(b, Config.CurrencySymbol)
 end
 
-local function areaOf(key: string): string
-	local area = Formulas.parseKey(key)
-	return area or "Shaft"
+local function stationName(key: string): string
+	local area, index = Formulas.parseKey(key)
+	if area == "Shaft" and index then
+		return string.format("⛏ Ebene %d", index)
+	end
+	local info = AREA_INFO[area or "Shaft"]
+	return info.Icon .. " " .. info.Name
 end
 
 ----------------------------------------------------------------------
--- Manager-Karte (Inhalt)
+-- Bausteine
 ----------------------------------------------------------------------
-local function managerInfo(parent: Instance, m: ManagerData, position: UDim2, width: number)
-	local rarity = Formulas.rarityDef(m.Rarity)
-	local ability = Config.Managers.Abilities[m.Ability]
-	local badge: Frame = Util.new("Frame", {
-		Size = UDim2.fromOffset(56, 56),
+local function rarityPill(parent: Instance, rarity: Config.RarityDef, position: UDim2)
+	local pill: Frame = Util.new("Frame", {
+		Size = UDim2.fromOffset(0, 26),
+		AutomaticSize = Enum.AutomaticSize.X,
 		Position = position,
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		Parent = parent,
 	}, {
 		Util.round(),
-		Util.gradient(Theme.lighten(rarity.Color, 0.25), Theme.darken(rarity.Color, 0.35)),
-		Util.stroke(Color3.new(1, 1, 1), 2, 0.4),
+		Util.gradient(Theme.lighten(rarity.Color, 0.2), Theme.darken(rarity.Color, 0.15)),
+		Util.stroke(Color3.new(1, 1, 1), 1.5, 0.3),
+		Util.padding(0, 10),
+	})
+	local l = Util.label({
+		Size = UDim2.fromScale(0, 1),
+		AutomaticSize = Enum.AutomaticSize.X,
+		Text = rarity.Name,
+		TextSize = 15,
+		Parent = pill,
+	})
+	Util.textStroke(1).Parent = l
+end
+
+local function avatarBadge(parent: Instance, m: ManagerData, position: UDim2, size: number)
+	local rarity = Formulas.rarityDef(m.Rarity)
+	local badge: Frame = Util.new("Frame", {
+		Size = UDim2.fromOffset(size, size),
+		Position = position,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Parent = parent,
+	}, {
+		Util.round(),
+		Util.gradient(Theme.lighten(rarity.Color, 0.3), Theme.darken(rarity.Color, 0.2)),
+		Util.stroke(rarity.Color, 3),
 	})
 	if m.FriendUserId then
-		-- Kopfbild des Freundes (rbxthumb lädt ohne API-Aufruf)
 		Util.new("ImageLabel", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
@@ -77,67 +105,128 @@ local function managerInfo(parent: Instance, m: ManagerData, position: UDim2, wi
 			Parent = badge,
 		}, { Util.round() })
 	else
-		Util.label({ Size = UDim2.fromScale(1, 1), Text = "👔", TextSize = 30, Parent = badge })
+		Util.label({ Size = UDim2.fromScale(1, 1), Text = "👔", TextSize = size * 0.5, Parent = badge })
 	end
+end
+
+--- Name + Seltenheit + Fähigkeit
+local function managerText(parent: Instance, m: ManagerData, x: number, width: number)
+	local rarity = Formulas.rarityDef(m.Rarity)
+	local ability = Config.Managers.Abilities[m.Ability]
 	local name = Util.label({
-		Size = UDim2.fromOffset(width - 66, 26),
-		Position = position + UDim2.fromOffset(66, 0),
-		Text = string.format('%s  <font color="#%s">%s</font>', m.Name, rarity.Color:ToHex(), rarity.Name),
+		Size = UDim2.fromOffset(width, 28),
+		Position = UDim2.fromOffset(x, 10),
+		Text = m.Name,
 		Font = Theme.Fonts.Title,
-		TextSize = 20,
+		TextSize = 22,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		AutomaticSize = Enum.AutomaticSize.None,
 		Parent = parent,
 	})
-	Util.textStroke(1).Parent = name
-	Util.label({
-		Size = UDim2.fromOffset(width - 66, 22),
-		Position = position + UDim2.fromOffset(66, 28),
+	Util.textStroke(1.2).Parent = name
+	rarityPill(parent, rarity, UDim2.fromOffset(x, 40))
+	local abilityLabel = Util.label({
+		Size = UDim2.fromOffset(width, 22),
+		Position = UDim2.fromOffset(x, 70),
 		Text = string.format(
-			"%s %s: %s  •  Tempo x%.2f",
+			"%s %s: %s",
 			ability and ability.Icon or "",
 			ability and ability.Name or "",
-			Formulas.abilityDescription(m),
-			rarity.PassiveSpeed
+			Formulas.abilityDescription(m)
 		),
-		TextSize = 15,
-		TextColor3 = Theme.Colors.SubText,
+		TextSize = 16,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		Parent = parent,
 	})
+	Util.textStroke(1).Parent = abilityLabel
 end
 
 ----------------------------------------------------------------------
--- Zeilen
+-- Inhalt der Reiter
 ----------------------------------------------------------------------
-local function stationRow(data: Types.PlayerData, key: string, order: number)
-	local manager = Formulas.managerFor(data, key)
-	local accent = if manager then Formulas.rarityDef(manager.Rarity).Color else nil
-	local card = Components.card({ Size = UDim2.new(1, 0, 0, 82), LayoutOrder = order * 100, Parent = list }, accent)
-	local area = areaOf(key)
-	local stationLabel = Util.label({
-		Size = UDim2.fromOffset(150, 82),
-		Position = UDim2.fromOffset(14, 0),
-		Text = AREA_INFO[area].Icon .. " " .. (if area == "Shaft"
-			then "Ebene " .. tostring(select(2, Formulas.parseKey(key)))
-			else AREA_INFO[area].Name),
+local function hireCard(area: string, order: number)
+	local info = AREA_INFO[area]
+	local card =
+		Components.card({ Size = UDim2.new(1, 0, 0, 96), LayoutOrder = order, Parent = list }, Theme.Colors.Green)
+	local title = Util.label({
+		Size = UDim2.new(1, -300, 0, 32),
+		Position = UDim2.fromOffset(18, 12),
+		Text = info.Icon .. " " .. info.Name .. "-Manager einstellen",
 		Font = Theme.Fonts.Title,
-		TextSize = 20,
+		TextSize = 23,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = card,
 	})
-	Util.textStroke(1).Parent = stationLabel
+	Util.textStroke(1.2).Parent = title
+	local chances = {}
+	local total = 0
+	for _, r in Config.Managers.Rarities do
+		total += r.Weight
+	end
+	for _, r in Config.Managers.Rarities do
+		table.insert(
+			chances,
+			string.format(
+				'<font color="#%s">%s %g%%</font>',
+				r.Color:ToHex(),
+				r.Name,
+				math.floor(r.Weight / total * 1000 + 0.5) / 10
+			)
+		)
+	end
+	local chanceLabel = Util.label({
+		Size = UDim2.new(1, -300, 0, 40),
+		Position = UDim2.fromOffset(18, 48),
+		Text = table.concat(chances, "  "),
+		TextSize = 15,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = card,
+	})
+	Util.textStroke(1).Parent = chanceLabel
+	hireButton = Components.button({
+		Text = "",
+		Color = Theme.Colors.Green,
+		Size = UDim2.fromOffset(250, 72),
+		Position = UDim2.new(1, -14, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0.5),
+		TextSize = 22,
+		Sound = "Purchase",
+		Parent = card,
+		OnClick = function()
+			Remote.send("HireManager", { Area = area })
+		end,
+	})
+end
+
+local function stationRow(data: Types.PlayerData, key: string, order: number)
+	local manager = Formulas.managerFor(data, key)
+	local accent = if manager then Formulas.rarityDef(manager.Rarity).Color else nil
+	local card = Components.card({ Size = UDim2.new(1, 0, 0, 100), LayoutOrder = order * 100, Parent = list }, accent)
+	local label = Util.label({
+		Size = UDim2.fromOffset(140, 100),
+		Position = UDim2.fromOffset(16, 0),
+		Text = stationName(key),
+		Font = Theme.Fonts.Title,
+		TextSize = 21,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = card,
+	})
+	Util.textStroke(1.2).Parent = label
 
 	if manager then
-		managerInfo(card, manager, UDim2.fromOffset(160, 13), 330)
+		avatarBadge(card, manager, UDim2.fromOffset(156, 16), 68)
+		managerText(card, manager, 236, 250)
 		local ability: Components.Button
 		ability = Components.button({
 			Text = "",
 			Color = Theme.Colors.Gold,
-			Size = UDim2.fromOffset(150, 56),
-			Position = UDim2.new(1, -72, 0.5, 0),
+			Size = UDim2.fromOffset(170, 66),
+			Position = UDim2.new(1, -78, 0.5, 0),
 			AnchorPoint = Vector2.new(1, 0.5),
-			TextSize = 17,
+			TextSize = 19,
 			Parent = card,
 			Sound = "Purchase",
 			OnClick = function()
@@ -151,117 +240,118 @@ local function stationRow(data: Types.PlayerData, key: string, order: number)
 		Components.button({
 			Text = "↩",
 			Color = Theme.Colors.CardLight,
-			Size = UDim2.fromOffset(52, 52),
-			Position = UDim2.new(1, -12, 0.5, 0),
+			Size = UDim2.fromOffset(54, 54),
+			Position = UDim2.new(1, -14, 0.5, 0),
 			AnchorPoint = Vector2.new(1, 0.5),
-			TextSize = 24,
+			TextSize = 26,
 			Parent = card,
 			OnClick = function()
 				Remote.send("UnassignManager", { ManagerId = manager.Id })
 			end,
 		})
-	else
-		Util.label({
-			Size = UDim2.fromOffset(260, 82),
-			Position = UDim2.fromOffset(160, 0),
-			Text = "Kein Manager - du musst selbst tippen!",
-			TextSize = 15,
-			TextColor3 = Theme.Colors.Muted,
-			TextXAlignment = Enum.TextXAlignment.Left,
+		return
+	end
+
+	local area = Formulas.parseKey(key) or "Shaft"
+	local hint = Util.label({
+		Size = UDim2.fromOffset(280, 100),
+		Position = UDim2.fromOffset(160, 0),
+		Text = 'Kein Manager\n<font size="15">Du musst selbst tippen!</font>',
+		TextSize = 20,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = card,
+	})
+	Util.textStroke(1).Parent = hint
+	local candidates = {}
+	for _, m in data.Managers do
+		if m.Area == area and not m.AssignedTo then
+			table.insert(candidates, m)
+		end
+	end
+	if #candidates > 0 then
+		Components.button({
+			Text = if expandedKey == key then "Schließen" else string.format("Zuweisen (%d)", #candidates),
+			Color = Theme.Colors.Blue,
+			Size = UDim2.fromOffset(210, 66),
+			Position = UDim2.new(1, -14, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			TextSize = 21,
 			Parent = card,
+			OnClick = function()
+				expandedKey = if expandedKey == key then nil else key
+				ManagersPanel.rebuild(true)
+			end,
 		})
-		local candidates = {}
-		for _, m in data.Managers do
-			if m.Area == area and not m.AssignedTo then
-				table.insert(candidates, m)
-			end
-		end
-		if #candidates > 0 then
+	else
+		local cost = Formulas.managerHireCost(data, area)
+		local hire = Components.button({
+			Text = "Einstellen\n" .. money(cost),
+			Color = Theme.Colors.Green,
+			Size = UDim2.fromOffset(210, 66),
+			Position = UDim2.new(1, -14, 0.5, 0),
+			AnchorPoint = Vector2.new(1, 0.5),
+			TextSize = 19,
+			Parent = card,
+			Sound = "Purchase",
+			OnClick = function()
+				Remote.send("HireManager", { Area = area })
+			end,
+		})
+		hire.SetEnabled(BigNum.gte(data.Cash, cost))
+	end
+	if expandedKey == key then
+		table.sort(candidates, function(a, b)
+			return Formulas.rarityIndex(a.Rarity) > Formulas.rarityIndex(b.Rarity)
+		end)
+		for i, m in candidates do
+			local pick = Components.card({
+				Size = UDim2.new(0.94, 0, 0, 100),
+				LayoutOrder = order * 100 + i,
+				Parent = list,
+			}, Formulas.rarityDef(m.Rarity).Color)
+			avatarBadge(pick, m, UDim2.fromOffset(14, 16), 68)
+			managerText(pick, m, 94, 330)
 			Components.button({
-				Text = if expandedKey == key then "Schließen" else string.format("Zuweisen (%d)", #candidates),
-				Color = Theme.Colors.Blue,
-				Size = UDim2.fromOffset(190, 56),
-				Position = UDim2.new(1, -12, 0.5, 0),
-				AnchorPoint = Vector2.new(1, 0.5),
-				TextSize = 18,
-				Parent = card,
-				OnClick = function()
-					expandedKey = if expandedKey == key then nil else key
-					ManagersPanel.rebuild(true)
-				end,
-			})
-		else
-			local cost = Formulas.managerHireCost(data, area)
-			local hire = Components.button({
-				Text = "Einstellen " .. money(cost),
+				Text = "✓ Zuweisen",
 				Color = Theme.Colors.Green,
-				Size = UDim2.fromOffset(220, 56),
-				Position = UDim2.new(1, -12, 0.5, 0),
+				Size = UDim2.fromOffset(170, 62),
+				Position = UDim2.new(1, -14, 0.5, 0),
 				AnchorPoint = Vector2.new(1, 0.5),
-				TextSize = 17,
-				Parent = card,
+				TextSize = 20,
+				Parent = pick,
 				OnClick = function()
-					Remote.send("HireManager", { Area = area })
+					expandedKey = nil
+					Remote.send("AssignManager", { ManagerId = m.Id, Key = key })
 				end,
 			})
-			hire.SetEnabled(BigNum.gte(data.Cash, cost))
-		end
-		-- Auswahl der Reserve-Manager
-		if expandedKey == key then
-			for i, m in candidates do
-				local pick =
-					Components.card({ Size = UDim2.new(0.94, 0, 0, 76), LayoutOrder = order * 100 + i, Parent = list })
-				managerInfo(pick, m, UDim2.fromOffset(12, 10), 420)
-				Components.button({
-					Text = "Zuweisen",
-					Color = Theme.Colors.Green,
-					Size = UDim2.fromOffset(150, 52),
-					Position = UDim2.new(1, -12, 0.5, 0),
-					AnchorPoint = Vector2.new(1, 0.5),
-					TextSize = 18,
-					Parent = pick,
-					OnClick = function()
-						expandedKey = nil
-						Remote.send("AssignManager", { ManagerId = m.Id, Key = key })
-					end,
-				})
-			end
 		end
 	end
 end
 
-local function sectionTitle(text: string, order: number)
-	local l = Util.label({
-		Size = UDim2.new(1, 0, 0, 34),
-		LayoutOrder = order * 100,
-		Text = text,
-		Font = Theme.Fonts.Title,
-		TextSize = 22,
-		TextColor3 = Theme.Colors.Gold,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Parent = list,
-	})
-	Util.textStroke(1).Parent = l
-end
-
 local function reserveRow(m: ManagerData, order: number)
-	local card = Components.card({ Size = UDim2.new(1, 0, 0, 76), LayoutOrder = order * 100, Parent = list })
-	managerInfo(card, m, UDim2.fromOffset(12, 10), 460)
-	Util.label({
-		Size = UDim2.fromOffset(120, 20),
-		Position = UDim2.new(1, -150, 0, 6),
-		Text = AREA_INFO[m.Area].Icon .. " " .. AREA_INFO[m.Area].Name,
-		TextSize = 14,
-		TextColor3 = Theme.Colors.Muted,
+	local card = Components.card({
+		Size = UDim2.new(1, 0, 0, 100),
+		LayoutOrder = order,
+		Parent = list,
+	}, Formulas.rarityDef(m.Rarity).Color)
+	avatarBadge(card, m, UDim2.fromOffset(14, 16), 68)
+	managerText(card, m, 94, 360)
+	local info = AREA_INFO[m.Area]
+	local areaLabel = Util.label({
+		Size = UDim2.fromOffset(150, 24),
+		Position = UDim2.new(1, -170, 0, 12),
+		Text = info.Icon .. " " .. info.Name,
+		TextSize = 16,
 		Parent = card,
 	})
+	Util.textStroke(1).Parent = areaLabel
 	Components.button({
 		Text = "Entlassen",
 		Color = Theme.Colors.Red,
-		Size = UDim2.fromOffset(130, 44),
-		Position = UDim2.new(1, -12, 1, -10),
+		Size = UDim2.fromOffset(150, 48),
+		Position = UDim2.new(1, -14, 1, -12),
 		AnchorPoint = Vector2.new(1, 1),
-		TextSize = 16,
+		TextSize = 18,
 		Parent = card,
 		OnClick = function()
 			Popups.confirm(
@@ -274,11 +364,33 @@ local function reserveRow(m: ManagerData, order: number)
 	})
 end
 
+local function emptyHint(text: string, order: number)
+	local l = Util.label({
+		Size = UDim2.new(1, 0, 0, 80),
+		LayoutOrder = order,
+		Text = text,
+		TextSize = 19,
+		TextWrapped = true,
+		Parent = list,
+	})
+	Util.textStroke(1).Parent = l
+end
+
 ----------------------------------------------------------------------
 -- Aufbau / Aktualisierung
 ----------------------------------------------------------------------
+local function reserveCount(data: Types.PlayerData): number
+	local n = 0
+	for _, m in data.Managers do
+		if not m.AssignedTo then
+			n += 1
+		end
+	end
+	return n
+end
+
 local function signature(data: Types.PlayerData): string
-	local parts = { tostring(#data.Shafts), tostring(expandedKey) }
+	local parts = { currentTab, tostring(#data.Shafts), tostring(expandedKey) }
 	for _, m in data.Managers do
 		table.insert(parts, m.Id .. ":" .. tostring(m.AssignedTo))
 	end
@@ -287,32 +399,41 @@ local function signature(data: Types.PlayerData): string
 	return table.concat(parts, "|")
 end
 
-local function updateAbilityButtons()
+local function updateDynamic()
 	local snap = ClientState.Snapshot
 	if not snap then
 		return
 	end
+	local data = snap.Data
 	local now = Clock.now()
 	for id, button in abilityButtons do
-		local m = Formulas.findManager(snap.Data, id)
+		local m = Formulas.findManager(data, id)
 		if m then
 			local def = Config.Managers.Abilities[m.Ability]
 			if m.ActiveUntil > now then
-				button.SetText("✨ " .. Formulas.formatDuration(m.ActiveUntil - now))
+				button.SetText("✨ Aktiv\n" .. Formulas.formatDuration(m.ActiveUntil - now))
 				button.SetEnabled(false)
 			elseif m.CooldownUntil > now then
-				button.SetText("⏳ " .. Formulas.formatDuration(m.CooldownUntil - now))
+				button.SetText("⏳ Lädt\n" .. Formulas.formatDuration(m.CooldownUntil - now))
 				button.SetEnabled(false)
 			else
-				button.SetText((def and def.Icon or "⚡") .. " " .. (def and def.Name or "Boost"))
+				button.SetText((def and def.Icon or "⚡") .. " " .. (def and def.Name or "Boost") .. "\nAKTIVIEREN")
 				button.SetEnabled(true)
 			end
 		end
 	end
-	for area, button in hireButtons do
-		local cost = Formulas.managerHireCost(snap.Data, area)
-		button.SetText(string.format("%s %s\n%s", AREA_INFO[area].Icon, AREA_INFO[area].Name, money(cost)))
-		button.SetEnabled(BigNum.gte(snap.Data.Cash, cost) and #snap.Data.Managers < Config.Managers.MaxOwned)
+	if hireButton and AREA_INFO[currentTab] then
+		local cost = Formulas.managerHireCost(data, currentTab)
+		local full = #data.Managers >= Config.Managers.MaxOwned
+		hireButton.SetText(if full then "Reserve voll" else "Einstellen\n" .. money(cost))
+		hireButton.SetEnabled(not full and BigNum.gte(data.Cash, cost))
+	end
+	for tab, b in tabButtons do
+		b.SetColor(if tab == currentTab then Theme.Colors.Selected else Theme.Colors.CardLight)
+	end
+	local reserve = tabButtons.Reserve
+	if reserve then
+		reserve.SetText(string.format("📦 Reserve (%d)", reserveCount(data)))
 	end
 end
 
@@ -324,7 +445,7 @@ function ManagersPanel.rebuild(force: boolean?)
 	local data = snap.Data
 	local sig = signature(data)
 	if not force and sig == lastSignature then
-		updateAbilityButtons()
+		updateDynamic()
 		return
 	end
 	lastSignature = sig
@@ -334,89 +455,69 @@ function ManagersPanel.rebuild(force: boolean?)
 		end
 	end
 	table.clear(abilityButtons)
+	hireButton = nil
 
-	local order = 0
-	sectionTitle("Stationen", order)
-	order += 1
-	stationRow(data, "Warehouse", order)
-	order += 1
-	stationRow(data, "Elevator", order)
-	for i = 1, #data.Shafts do
-		order += 1
-		stationRow(data, Formulas.shaftKey(i), order)
-	end
-
-	local reserve = {}
-	for _, m in data.Managers do
-		if not m.AssignedTo then
-			table.insert(reserve, m)
+	if currentTab == "Reserve" then
+		local reserve = {}
+		for _, m in data.Managers do
+			if not m.AssignedTo then
+				table.insert(reserve, m)
+			end
 		end
-	end
-	if #reserve > 0 then
-		order += 1
-		sectionTitle(string.format("Reserve (%d)", #reserve), order)
 		table.sort(reserve, function(a, b)
 			return Formulas.rarityIndex(a.Rarity) > Formulas.rarityIndex(b.Rarity)
 		end)
-		for _, m in reserve do
-			order += 1
-			reserveRow(m, order)
+		if #reserve == 0 then
+			emptyHint("Keine Manager in der Reserve.\nNeue Manager werden automatisch freien Stationen zugewiesen.", 1)
+		end
+		for i, m in reserve do
+			reserveRow(m, i)
+		end
+	else
+		hireCard(currentTab, 0)
+		if currentTab == "Shaft" then
+			for i = 1, #data.Shafts do
+				stationRow(data, Formulas.shaftKey(i), i)
+			end
+		else
+			stationRow(data, currentTab, 1)
 		end
 	end
-	updateAbilityButtons()
+	updateDynamic()
 end
 
 function ManagersPanel.start()
-	window = Components.window("Manager", "👔", Theme.Colors.Blue, Vector2.new(860, 580), function()
+	window = Components.window("Manager", "👔", Theme.Colors.Blue, Vector2.new(900, 600), function()
 		PanelManager.close()
 	end)
 
-	-- Einstellen-Leiste
-	local hireBar: Frame = Util.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 74),
+	local tabBar: Frame = Util.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 58),
 		BackgroundTransparency = 1,
 		Parent = window.Content,
-	}, { Util.list(Enum.FillDirection.Horizontal, 10) })
-	for i, area in AREA_ORDER do
-		hireButtons[area] = Components.button({
-			Text = "",
-			Color = Theme.Colors.Green,
-			Size = UDim2.fromOffset(250, 68),
-			TextSize = 18,
+	}, { Util.list(Enum.FillDirection.Horizontal, 8, Enum.HorizontalAlignment.Left) })
+	for i, tab in TABS do
+		local info = AREA_INFO[tab]
+		tabButtons[tab] = Components.button({
+			Text = if info then info.Icon .. " " .. info.Plural else "📦 Reserve",
+			Color = Theme.Colors.CardLight,
+			Size = UDim2.fromOffset(200, 54),
+			TextSize = 20,
 			LayoutOrder = i,
-			Parent = hireBar,
-			Sound = "Purchase",
+			Parent = tabBar,
 			OnClick = function()
-				Remote.send("HireManager", { Area = area })
+				currentTab = tab
+				expandedKey = nil
+				ManagersPanel.rebuild(true)
 			end,
 		})
 	end
-	-- Chancen-Info
-	local chances = {}
-	local total = 0
-	for _, r in Config.Managers.Rarities do
-		total += r.Weight
-	end
-	for _, r in Config.Managers.Rarities do
-		table.insert(
-			chances,
-			string.format('<font color="#%s">%s %.1f%%</font>', r.Color:ToHex(), r.Name, r.Weight / total * 100)
-		)
-	end
-	Util.label({
-		Size = UDim2.new(1, 0, 0, 22),
-		Position = UDim2.fromOffset(0, 76),
-		Text = "Chancen: " .. table.concat(chances, "  "),
-		TextSize = 15,
-		TextColor3 = Theme.Colors.SubText,
-		Parent = window.Content,
-	})
 
 	list = Components.scrollList({
-		Size = UDim2.new(1, 0, 1, -104),
-		Position = UDim2.fromOffset(0, 104),
+		Size = UDim2.new(1, 0, 1, -68),
+		Position = UDim2.fromOffset(0, 68),
 		Parent = window.Content,
-	}, 8)
+	}, 10)
 
 	PanelManager.register("Managers", window, function()
 		expandedKey = nil
@@ -432,7 +533,7 @@ function ManagersPanel.start()
 		while true do
 			task.wait(1)
 			if PanelManager.isOpen("Managers") then
-				updateAbilityButtons()
+				updateDynamic()
 			end
 		end
 	end)

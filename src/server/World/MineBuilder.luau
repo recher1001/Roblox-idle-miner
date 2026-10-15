@@ -187,7 +187,7 @@ function MineBuilder.makeInfoBillboard(anchor: BasePart, accent: Color3): Billbo
 	local frame = Instance.new("Frame")
 	frame.Name = "Panel"
 	frame.Size = UDim2.fromScale(1, 1)
-	frame.BackgroundColor3 = Color3.fromRGB(72, 66, 106)
+	frame.BackgroundColor3 = Color3.fromRGB(100, 92, 146)
 	frame.BackgroundTransparency = 0.05
 	frame.Parent = gui
 	local corner = Instance.new("UICorner")

@@ -87,7 +87,7 @@ function PanelManager.open(name: string, arg: any?)
 	current = name
 	local o = getOverlay()
 	o.Visible = true
-	Util.tween(o, 0.2, { BackgroundTransparency = 0.6 })
+	Util.tween(o, 0.2, { BackgroundTransparency = 0.7 })
 
 	local root = entry.Window.Root
 	root.Visible = true
