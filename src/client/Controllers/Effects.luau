@@ -78,7 +78,7 @@ local function onEffect(kind: string, payload: { [string]: any })
 			local pos = PlotLocator.stationPosition(plot, key)
 			if pos then
 				FloatingText.world(
-					string.format("⬆ +%d LEVEL", tonumber(payload.Levels) or 1),
+					string.format("⬆️ +%d LEVEL", tonumber(payload.Levels) or 1),
 					Theme.Colors.Gold,
 					pos,
 					30

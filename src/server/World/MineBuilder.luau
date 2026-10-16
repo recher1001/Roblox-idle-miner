@@ -449,7 +449,7 @@ function MineBuilder.buildBase(plot: Model, origin: CFrame)
 	signText.BackgroundTransparency = 1
 	signText.Font = Enum.Font.FredokaOne
 	signText.TextScaled = true
-	signText.Text = "⬇ LEITER ⬇"
+	signText.Text = "⬇️ LEITER ⬇️"
 	signText.TextColor3 = Color3.fromRGB(40, 24, 10)
 	signText.Parent = signGui
 

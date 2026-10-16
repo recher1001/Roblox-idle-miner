@@ -229,7 +229,7 @@ local function petCell(pet: Types.PetData, order: number)
 			ZIndex = 3,
 			Parent = tile,
 		}, { Util.round(), Util.stroke(Color3.new(1, 1, 1), 2) })
-		Util.label({ Size = UDim2.fromScale(1, 1), Text = "✓", TextSize = 20, ZIndex = 4, Parent = badge })
+		Util.label({ Size = UDim2.fromScale(1, 1), Text = "✔️", TextSize = 20, ZIndex = 4, Parent = badge })
 	end
 	local name = Util.label({
 		Size = UDim2.new(1, -8, 0, 22),
@@ -423,7 +423,7 @@ local function updatePets()
 		slotButton.SetColor(Theme.Colors.Purple)
 		slotButton.SetEnabled(true)
 	else
-		slotButton.SetText(string.format("✓ Max. %d Slots", Config.Pets.MaxSlots))
+		slotButton.SetText(string.format("✅ Max. %d Slots", Config.Pets.MaxSlots))
 		slotButton.SetEnabled(false)
 	end
 	releaseButton.SetEnabled(#data.Pets > 0)

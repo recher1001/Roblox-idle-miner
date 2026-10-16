@@ -44,7 +44,7 @@ local function update()
 	local current = Formulas.rebirthMultiplier(data.RebirthPoints)
 	local after = Formulas.rebirthMultiplier(data.RebirthPoints + points)
 	multLabel.Text = string.format(
-		'x%s  ➜  <font color="#78FF8C">x%s</font>',
+		'x%s  ➡️  <font color="#78FF8C">x%s</font>',
 		BigNum.format(BigNum.new(current)),
 		BigNum.format(BigNum.new(after))
 	)

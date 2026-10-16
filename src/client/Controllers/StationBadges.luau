@@ -3,7 +3,7 @@
 	StationBadges
 	=============
 	Für die EIGENE Mine:
-	  * "⬆"-Button neben jeder Station -> öffnet Upgrades für genau diese Station
+	  * "⬆️"-Button neben jeder Station -> öffnet Upgrades für genau diese Station
 	  * Fortschrittsbalken des laufenden Zyklus
 	  * "👆 TIPPEN!" hüpft über Stationen ohne Manager, die gerade stillstehen
 	    (Tippen startet den Zyklus - ohne Manager musst du selbst arbeiten!)
@@ -75,7 +75,7 @@ local function makeBadge(key: string, station: Model): Badge?
 		Size = UDim2.fromScale(0.24, 0.6),
 		Position = UDim2.fromScale(0.72, 0),
 		BackgroundColor3 = Color3.new(1, 1, 1),
-		Text = "⬆",
+		Text = "⬆️",
 		Font = Theme.Fonts.Title,
 		TextScaled = true,
 		TextColor3 = Color3.new(1, 1, 1),

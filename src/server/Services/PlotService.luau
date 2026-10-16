@@ -272,7 +272,7 @@ local function assign(session: Session)
 	session.PlotIndex = plot.Index
 	plot.Model:SetAttribute("OwnerUserId", session.Player.UserId)
 	plot.Model:SetAttribute("OwnerName", session.Player.DisplayName)
-	setSign(plot, "⛏ Mine von " .. session.Player.DisplayName)
+	setSign(plot, "⛏️ Mine von " .. session.Player.DisplayName)
 
 	MineBuilder.buildMine(plot.Model, plot.Origin, #session.Data.Shafts, SessionService.currentSection(session))
 	connectAllStations(session, plot)

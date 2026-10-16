@@ -3,7 +3,7 @@
 	ManagersPanel
 	=============
 	Übersichtlich in Reitern:
-	  ⛏ Schächte | 🛗 Aufzug | 🏪 Händler | 📦 Reserve
+	  ⛏️ Schächte | 🛗 Aufzug | 🏪 Händler | 📦 Reserve
 	Jeder Stations-Reiter zeigt oben "Einstellen" (Preis + Chancen) und darunter
 	jede Station: Manager mit Seltenheit, Fähigkeit (aktivieren) oder "Zuweisen".
 	Die Reserve listet alle nicht zugewiesenen Manager (entlassen möglich).
@@ -31,7 +31,7 @@ type ManagerData = Types.ManagerData
 local ManagersPanel = {}
 
 local AREA_INFO: { [string]: { Name: string, Icon: string, Plural: string } } = {
-	Shaft = { Name = "Schacht", Icon = "⛏", Plural = "Schächte" },
+	Shaft = { Name = "Schacht", Icon = "⛏️", Plural = "Schächte" },
 	Elevator = { Name = "Aufzug", Icon = "🛗", Plural = "Aufzug" },
 	Warehouse = { Name = "Händler", Icon = "🏪", Plural = "Händler" },
 }
@@ -54,7 +54,7 @@ end
 local function stationName(key: string): string
 	local area, index = Formulas.parseKey(key)
 	if area == "Shaft" and index then
-		return string.format("⛏ Ebene %d", index)
+		return string.format("⛏️ Ebene %d", index)
 	end
 	local info = AREA_INFO[area or "Shaft"]
 	return info.Icon .. " " .. info.Name
@@ -239,7 +239,7 @@ local function stationRow(data: Types.PlayerData, key: string, order: number)
 		})
 		abilityButtons[manager.Id] = ability
 		Components.button({
-			Text = "↩",
+			Text = "↩️",
 			Color = Theme.Colors.CardLight,
 			Size = UDim2.fromOffset(54, 54),
 			Position = UDim2.new(1, -14, 0.5, 0),
@@ -313,7 +313,7 @@ local function stationRow(data: Types.PlayerData, key: string, order: number)
 			avatarBadge(pick, m, UDim2.fromOffset(14, 16), 68)
 			managerText(pick, m, 94, 330)
 			Components.button({
-				Text = "✓ Zuweisen",
+				Text = "✅ Zuweisen",
 				Color = Theme.Colors.Green,
 				Size = UDim2.fromOffset(170, 62),
 				Position = UDim2.new(1, -14, 0.5, 0),

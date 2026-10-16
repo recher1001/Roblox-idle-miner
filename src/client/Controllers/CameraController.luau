@@ -178,7 +178,7 @@ local function buildControls()
 		end,
 	})
 	Components.button({
-		Text = "✕ Schließen",
+		Text = "❌ Schließen",
 		Color = Theme.Colors.Red,
 		Size = UDim2.fromOffset(186, 60),
 		TextSize = 22,

@@ -67,8 +67,7 @@ local function hide(name: string)
 	if entry.OnClose then
 		entry.OnClose()
 	end
-	Util.tween(root, 0.18, { GroupTransparency = 1 })
-	local t = Util.tween(entry.Window.Scale, 0.18, { Scale = 0.88 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	local t = Util.tween(entry.Window.Scale, 0.16, { Scale = 0.05 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 	t.Completed:Once(function()
 		if current ~= name then
 			root.Visible = false
@@ -91,7 +90,6 @@ function PanelManager.open(name: string, arg: any?)
 
 	local root = entry.Window.Root
 	root.Visible = true
-	root.GroupTransparency = 1
 	-- Fenster immer komplett auf den Bildschirm passen lassen (kleine Handys)
 	local fit = 1
 	local layer = Root.layer("Modal")
@@ -103,9 +101,8 @@ function PanelManager.open(name: string, arg: any?)
 	if availX > 0 and availY > 0 and w > 0 and h > 0 then
 		fit = math.min(1, (availX - 24) / w, (availY - 24) / h)
 	end
-	entry.Window.Scale.Scale = fit * 0.85
-	Util.tween(root, 0.22, { GroupTransparency = 0 })
-	Util.tween(entry.Window.Scale, 0.35, { Scale = fit }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	entry.Window.Scale.Scale = fit * 0.6
+	Util.tween(entry.Window.Scale, 0.32, { Scale = fit }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	if entry.OnOpen then
 		entry.OnOpen(arg)
 	end

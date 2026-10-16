@@ -433,7 +433,7 @@ local function buildCameraButton(parent: Frame, onCamera: () -> boolean, isActiv
 		Rainbow = true,
 		OnClick = function()
 			local active = onCamera()
-			button.SetText(if active then "⬅ ZURÜCK ZUM SPIEL" else "🎥 2D-MINENANSICHT")
+			button.SetText(if active then "⬅️ ZURÜCK ZUM SPIEL" else "🎥 2D-MINENANSICHT")
 			button.SetColor(if active then Theme.Colors.Orange else Theme.Colors.Cyan)
 		end,
 	})
@@ -442,7 +442,7 @@ local function buildCameraButton(parent: Frame, onCamera: () -> boolean, isActiv
 		while holder.Parent do
 			task.wait(0.3)
 			local active = isActive()
-			button.SetText(if active then "⬅ ZURÜCK ZUM SPIEL" else "🎥 2D-MINENANSICHT")
+			button.SetText(if active then "⬅️ ZURÜCK ZUM SPIEL" else "🎥 2D-MINENANSICHT")
 			button.SetColor(if active then Theme.Colors.Orange else Theme.Colors.Cyan)
 		end
 	end)

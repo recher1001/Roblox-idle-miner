@@ -79,7 +79,7 @@ local function miniTile(parent: Instance, petId: string, order: number, selected
 			ZIndex = 3,
 			Parent = tile,
 		}, { Util.round() })
-		Util.label({ Size = UDim2.fromScale(1, 1), Text = "✓", TextSize = 15, ZIndex = 4, Parent = badge })
+		Util.label({ Size = UDim2.fromScale(1, 1), Text = "✔️", TextSize = 15, ZIndex = 4, Parent = badge })
 	end
 	return tile
 end
@@ -223,7 +223,7 @@ local function render()
 	theirSide.Title.Text = "🎁 Angebot von " .. v.PartnerName
 	renderSide(mySide, v.MyOffer, v.MyReady)
 	renderSide(theirSide, v.TheirOffer, v.TheirReady)
-	readyButton.SetText(if v.MyReady then "↩ Nicht bereit" else "✅ Bereit")
+	readyButton.SetText(if v.MyReady then "↩️ Nicht bereit" else "✅ Bereit")
 	readyButton.SetColor(if v.MyReady then Theme.Colors.Orange else Theme.Colors.Green)
 	renderInventory()
 end

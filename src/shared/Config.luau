@@ -1140,7 +1140,7 @@ Config.Admin = {
 		{ Id = "Pets", Name = "Pets & Tickets geben", Icon = "🐾", Default = true },
 		{ Id = "Events", Name = "Events starten", Icon = "🔥", Default = false },
 		{ Id = "Kick", Name = "Spieler kicken", Icon = "👢", Default = false },
-		{ Id = "Reset", Name = "Spielstand zurücksetzen", Icon = "♻", Default = false },
+		{ Id = "Reset", Name = "Spielstand zurücksetzen", Icon = "♻️", Default = false },
 	} :: { AdminPermissionDef },
 	-- OP-Kräfte, die Admins vergeben/wegnehmen können (werden gespeichert)
 	Powers = {

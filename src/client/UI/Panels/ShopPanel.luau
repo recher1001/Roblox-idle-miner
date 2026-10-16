@@ -193,7 +193,7 @@ local function build()
 				slotButton.SetText(BigNum.formatMoney(cost, Config.CurrencySymbol))
 				slotButton.SetEnabled(BigNum.gte(snap.Data.Cash, cost))
 			else
-				slotButton.SetText("✓ Alle Geld-Slots")
+				slotButton.SetText("✅ Alle Geld-Slots")
 				slotButton.SetEnabled(false)
 			end
 		end,
@@ -253,10 +253,10 @@ local function build()
 				end
 				local data = snap.Data
 				if item.Currency == nil then
-					button.SetText("✓ Gratis im Inventar")
+					button.SetText("✅ Gratis im Inventar")
 					button.SetEnabled(false)
 				elseif data.Items[item.Id] then
-					button.SetText("✓ Besitzt du")
+					button.SetText("✅ Besitzt du")
 					button.SetEnabled(false)
 				elseif item.Currency == "Gems" then
 					button.SetText(string.format("%d 💎", item.Cost))
@@ -295,7 +295,7 @@ local function build()
 				end
 				local data = snap.Data
 				if data.Items[gadget.Id] then
-					button.SetText("✓ Besitzt du")
+					button.SetText("✅ Besitzt du")
 					button.SetEnabled(false)
 				elseif data.Rebirths < gadget.Rebirths then
 					button.SetText(string.format("🔒 %d/%d Rebirths", data.Rebirths, gadget.Rebirths))
@@ -325,7 +325,7 @@ local function build()
 				Update = function()
 					local snap = ClientState.Snapshot
 					local canBuy = snap ~= nil and Formulas.canBuyRobuxSlot(snap.Data)
-					button.SetText(if canBuy then " Kaufen (Robux)" else "✓ Max. Slots")
+					button.SetText(if canBuy then " Kaufen (Robux)" else "✅ Max. Slots")
 					button.SetEnabled(canBuy)
 				end,
 			})
@@ -347,7 +347,7 @@ local function build()
 				local snap = ClientState.Snapshot
 				local owned = snap ~= nil and snap.Passes[pass.Id] == true
 				if owned then
-					button.SetText("✓ Besitzt du")
+					button.SetText("✅ Besitzt du")
 					button.SetEnabled(false)
 				elseif pass.GamePassId == 0 then
 					button.SetText("Bald verfügbar")

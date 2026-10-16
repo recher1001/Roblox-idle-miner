@@ -249,7 +249,7 @@ end
 -- Fenster (Modal-Panel mit Titel und Schließen-Button)
 ----------------------------------------------------------------------
 export type Window = {
-	Root: CanvasGroup,
+	Root: Frame,
 	Content: Frame,
 	Scale: UIScale,
 	Title: TextLabel,
@@ -258,20 +258,21 @@ export type Window = {
 
 function Components.window(title: string, icon: string, accent: Color3, size: Vector2, onClose: () -> ()): Window
 	local scale: UIScale = Util.new("UIScale")
-	local root: CanvasGroup = Util.new("CanvasGroup", {
+	-- Bewusst KEINE CanvasGroup: die rendert den Inhalt in eine Textur und
+	-- lässt dabei alle Farben dunkler/bläulicher aussehen.
+	local root: Frame = Util.new("Frame", {
 		Name = "Window",
 		Size = UDim2.fromOffset(size.X, size.Y),
 		Position = UDim2.fromScale(0.5, 0.5),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundColor3 = Color3.new(1, 1, 1),
-		GroupTransparency = 0,
 		Visible = false,
 	}, {
 		Util.corner(Theme.Radius.Large),
 		Util.gradient(Theme.Colors.PanelTop, Theme.Colors.PanelBottom, 60),
 		scale,
 	})
-	-- Rahmen außerhalb der CanvasGroup würde abgeschnitten -> innen zeichnen
+	-- Rahmen innen gezeichnet (liegt über dem Inhalt)
 	Util.new("Frame", {
 		Name = "Border",
 		Size = UDim2.fromScale(1, 1),
@@ -322,7 +323,7 @@ function Components.window(title: string, icon: string, accent: Color3, size: Ve
 
 	-- großes, rundes X oben rechts zum Schließen
 	local close = Components.button({
-		Text = "✕",
+		Text = "",
 		Color = Theme.Colors.Red,
 		Size = UDim2.fromOffset(58, 58),
 		Position = UDim2.new(1, -8, 0, 3),
@@ -341,6 +342,22 @@ function Components.window(title: string, icon: string, accent: Color3, size: Ve
 	if closeStroke then
 		closeStroke.Color = Color3.new(1, 1, 1)
 		closeStroke.Thickness = 3.5
+	end
+	-- Das X wird aus zwei Balken gezeichnet (das Zeichen fehlt in den Roblox-Schriften)
+	for _, angle in { 45, -45 } do
+		Util.new("Frame", {
+			Name = "XBar",
+			Size = UDim2.new(0.56, 0, 0, 7),
+			Position = UDim2.fromScale(0.5, 0.5),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Rotation = angle,
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			ZIndex = (close.Instance.ZIndex or 1) + 2,
+			Parent = close.Instance,
+		}, {
+			Util.round(),
+			Util.stroke(Color3.fromRGB(110, 0, 30), 1.5),
+		})
 	end
 
 	local content: Frame = Util.new("Frame", {

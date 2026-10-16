@@ -133,7 +133,7 @@ end
 ----------------------------------------------------------------------
 function Popups.offline(amount: BigNum.BigNum, seconds: number, capped: boolean)
 	local s = shell(Vector2.new(540, 400), Theme.Colors.Gold)
-	title(s.Card, "Willkommen zurück! ⛏", 22, Theme.Colors.Gold)
+	title(s.Card, "Willkommen zurück! ⛏️", 22, Theme.Colors.Gold)
 	Util.label({
 		Size = UDim2.new(1, -40, 0, 50),
 		Position = UDim2.fromOffset(20, 76),
@@ -356,7 +356,7 @@ local function playReveal(m: Types.ManagerData)
 	Util.label({
 		Size = UDim2.new(1, 0, 0, 30),
 		Position = UDim2.new(0, 0, 1, -40),
-		Text = if m.AssignedTo then "✓ Automatisch zugewiesen" else "In die Reserve",
+		Text = if m.AssignedTo then "✅ Automatisch zugewiesen" else "In die Reserve",
 		TextSize = 15,
 		TextColor3 = Color3.new(1, 1, 1),
 		TextTransparency = 0.2,
@@ -615,7 +615,7 @@ local function playHatch(info: HatchInfo)
 				"💰 %s Einkommen\n🍀 %s%s",
 				if def then Formulas.formatPetMultiplier(def.Multiplier) else "x1",
 				Formulas.formatChance(result.Chance),
-				if result.Equipped then "   ✓ Ausgerüstet" else ""
+				if result.Equipped then "   ✅ Ausgerüstet" else ""
 			),
 			TextSize = 19,
 			Parent = s.Holder,

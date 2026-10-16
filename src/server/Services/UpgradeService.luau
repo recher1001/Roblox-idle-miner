@@ -74,7 +74,7 @@ function UpgradeService.unlockShaft(session: Session): (boolean, string?)
 	MineService.ensureCycles(session)
 	PlotService.refreshLevels(session)
 	SessionService.effect(session.Player, "Unlock", { Index = nextIndex, Name = def.Name })
-	SessionService.notify(session.Player, string.format("⛏ Neue Ebene: %s!", def.Name), "success")
+	SessionService.notify(session.Player, string.format("⛏️ Neue Ebene: %s!", def.Name), "success")
 	return true, nil
 end
 

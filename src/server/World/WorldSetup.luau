@@ -308,7 +308,7 @@ local function buildSign(parent: Instance, position: Vector3)
 	label.BackgroundTransparency = 1
 	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
-	label.Text = "⛏ IDLE MINER TYCOON ⛏"
+	label.Text = "⛏️ IDLE MINER TYCOON ⛏️"
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextStrokeTransparency = 0
 	label.Parent = gui

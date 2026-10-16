@@ -3,7 +3,7 @@
 	UpgradesPanel
 	=============
 	Links:  Händler, Aufzug und die Ebenen seitenweise (◀ Ebenen 11–20 ▶).
-	        Ein grüner ⬆-Punkt zeigt, wo du dir gerade ein Upgrade leisten kannst.
+	        Ein grüner ⬆️-Punkt zeigt, wo du dir gerade ein Upgrade leisten kannst.
 	Rechts: buntes Minen-Banner der gewählten Station (Erz, Zyklus-Fortschritt,
 	        Kennzahlen, "👆 Abbauen" und "🎥 Zeigen"), Kaufmenge x1/x10/MAX und
 	        große Upgrade-Zeilen. Alle Werte über Formulas = Rechnung des Servers.
@@ -135,7 +135,7 @@ local function listButton(key: string, text: string, color: Color3, order: numbe
 		ZIndex = 6,
 		Parent = button.Instance,
 	}, { Util.round(), Util.stroke(Color3.new(1, 1, 1), 2.5) })
-	Util.label({ Size = UDim2.fromScale(1, 1), Text = "⬆", TextSize = 17, ZIndex = 7, Parent = dot })
+	Util.label({ Size = UDim2.fromScale(1, 1), Text = "⬆️", TextSize = 17, ZIndex = 7, Parent = dot })
 	local dotScale: UIScale = Util.new("UIScale", { Parent = dot })
 	Anim.pulse(dotScale, 0.15, 6)
 	listEntries[key] = { Button = button, Dot = dot }
@@ -207,7 +207,12 @@ local function rebuildList(data: Types.PlayerData)
 
 	for i = first, last do
 		local def = Formulas.shaftDef(i)
-		listButton(Formulas.shaftKey(i), string.format("⛏ %d · %s", i, def.Ore), buttonColor(def.OreColor), 10 + i)
+		listButton(
+			Formulas.shaftKey(i),
+			string.format("⛏️ %d · %s", i, def.Ore),
+			buttonColor(def.OreColor),
+			10 + i
+		)
 	end
 	if unlockVisible then
 		listButton(
@@ -378,21 +383,21 @@ local function statsText(data: Types.PlayerData, key: string): string
 	local managerText = if manager then "👔 " .. manager.Name else "👔 Kein Manager"
 	if area == "Shaft" and index then
 		return string.format(
-			"💰 %s / Zyklus  •  ⏱ %.2fs  •  %s",
+			"💰 %s / Zyklus  •  ⏱️ %.2fs  •  %s",
 			money(Formulas.shaftYield(data, index, ctx)),
 			Formulas.shaftDuration(data, index, ctx),
 			managerText
 		)
 	elseif area == "Elevator" then
 		return string.format(
-			"📦 %s pro Fahrt  •  ⏱ %.2fs  •  %s",
+			"📦 %s pro Fahrt  •  ⏱️ %.2fs  •  %s",
 			BigNum.format(Formulas.elevatorLoad(data, ctx)),
 			Formulas.elevatorDuration(data, ctx),
 			managerText
 		)
 	end
 	return string.format(
-		"📦 %s  •  ⏱ %.2fs  •  💰 x%.2f  •  %s",
+		"📦 %s  •  ⏱️ %.2fs  •  💰 x%.2f  •  %s",
 		BigNum.format(Formulas.warehouseLoad(data, ctx)),
 		Formulas.warehouseDuration(data, ctx),
 		Formulas.sellPriceMultiplier(data),
@@ -535,9 +540,9 @@ local function updateTexts()
 					row.Button.SetEnabled(false)
 				else
 					local nextLevel = level + quote.Levels
-					row.Level.Text = string.format("LEVEL %d  ➜  %d", level, nextLevel)
+					row.Level.Text = string.format("LEVEL %d  ➡️  %d", level, nextLevel)
 					row.Effect.Text = string.format(
-						'%s  ➜  <font color="#A8FF4F">%s</font>',
+						'%s  ➡️  <font color="#A8FF4F">%s</font>',
 						nowText,
 						Formulas.trackEffectText(data, selectedKey, row.TrackId, nextLevel)
 					)
@@ -605,7 +610,7 @@ function UpgradesPanel.rebuild()
 				selectedKey,
 				string.format("Ebene %d: %s", index, def.Name),
 				string.format("%s  •  Abschnitt %d", def.Ore, Formulas.sectionOf(index)),
-				"⛏",
+				"⛏️",
 				def.OreColor
 			)
 		elseif area == "Elevator" then
@@ -731,7 +736,7 @@ function UpgradesPanel.start()
 		local e = station:GetAttribute("CycleEnd")
 		if running and type(s) == "number" and type(e) == "number" and e > s then
 			bar.Set((Clock.now() - s) / (e - s))
-			bar.SetText("⚙ arbeitet ...")
+			bar.SetText("⚙️ arbeitet ...")
 		else
 			bar.Set(0)
 			bar.SetText(if station:GetAttribute("HasManager") then "wartet auf Erz" else "👆 Tippen zum Arbeiten")

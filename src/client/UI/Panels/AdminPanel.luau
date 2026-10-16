@@ -185,7 +185,7 @@ local function buildPlayerTab()
 	if info then
 		infoLine(
 			string.format(
-				"%s%s  •  💰 %s  •  💎 %s  •  ⭐ %d Rebirths  •  ⛏ %d Ebenen",
+				"%s%s  •  💰 %s  •  💎 %s  •  ⭐ %d Rebirths  •  ⛏️ %d Ebenen",
 				if info.IsOwner then "👑 " else "",
 				tostring(info.Name),
 				BigNum.formatMoney(BigNum.from(info.Cash), Config.CurrencySymbol),
@@ -222,7 +222,7 @@ local function buildPlayerTab()
 		local g = buttonGrid()
 		actionButton(g, "🔓 Alle Ebenen", Theme.Colors.Blue, "unlockall")
 		actionButton(g, "👔 Manager überall", Theme.Colors.Blue, "managers")
-		actionButton(g, "⏱ Cooldowns weg", Theme.Colors.Blue, "cooldowns")
+		actionButton(g, "⏱️ Cooldowns weg", Theme.Colors.Blue, "cooldowns")
 		actionButton(g, "🎁 Daily neu", Theme.Colors.Pink, "daily")
 		actionButton(g, "🌙 Offline 2h", Theme.Colors.Pink, "offline", "7200")
 	end
@@ -236,7 +236,7 @@ local function buildPlayerTab()
 		if can("Reset") then
 			actionButton(
 				g,
-				"♻ Spielstand zurücksetzen",
+				"♻️ Spielstand zurücksetzen",
 				Theme.Colors.Red,
 				"reset",
 				nil,
@@ -290,7 +290,7 @@ local function buildPowersTab()
 		})
 		Util.textStroke(1).Parent = desc
 		Components.button({
-			Text = if has then "✓ AN  (wegnehmen)" else "AUS  (geben)",
+			Text = if has then "✅ AN  (wegnehmen)" else "AUS  (geben)",
 			Color = if has then Theme.Colors.Green else Theme.Colors.CardLight,
 			Size = UDim2.fromOffset(220, 60),
 			Position = UDim2.new(1, -14, 0.5, 0),
@@ -358,7 +358,7 @@ local function adminPetCard(parent: Frame, petId: string, owned: number)
 		end,
 	})
 	Components.button({
-		Text = "−1",
+		Text = "-1",
 		Color = Theme.Colors.Red,
 		Size = UDim2.new(0.5, -9, 0, 36),
 		Position = UDim2.new(1, -6, 1, -6),
