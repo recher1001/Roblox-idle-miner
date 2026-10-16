@@ -57,7 +57,7 @@ local function rollRarity(lucky: boolean): Config.RarityDef
 end
 
 --- Erste Station des Bereichs ohne Manager (Schächte von oben nach unten)
-local function firstFreeStation(data: Types.PlayerData, area: string): string?
+function ManagerService.firstFreeStation(data: Types.PlayerData, area: string): string?
 	if area == "Shaft" then
 		for i = 1, #data.Shafts do
 			local key = Formulas.shaftKey(i)
@@ -94,7 +94,7 @@ function ManagerService.hire(session: Session, area: string): (boolean, string?,
 		Area = area,
 		Rarity = rarity.Id,
 		Ability = abilities[rng:NextInteger(1, #abilities)],
-		AssignedTo = firstFreeStation(data, area),
+		AssignedTo = ManagerService.firstFreeStation(data, area),
 		ActiveUntil = 0,
 		CooldownUntil = 0,
 	}

@@ -39,6 +39,8 @@ local PIT_BACK_Z, PIT_FRONT_Z = -40, -14
 local LEVEL_MIN_X = -4
 local PIT_BOTTOM = -LH * MAX_LEVELS - 6
 local PLOT_HALF = Config.World.PlotSpacing / 2
+local PLOT_FRONT, PLOT_BACK = 60, -60
+local LADDER_X0, LADDER_X1 = 34, 38
 
 MineBuilder.Layout = {
 	PitMinX = PIT_MIN_X,
@@ -51,6 +53,10 @@ MineBuilder.Layout = {
 	DepotPos = Vector3.new(-19, 0, -31),
 	WarehouseDoor = Vector3.new(-33, 0, -31),
 	SpawnPos = Vector3.new(14, 0, 24),
+	LockButtonPos = Vector3.new(0, 0, 24),
+	PlotHalf = PLOT_HALF,
+	PlotFront = PLOT_FRONT,
+	PlotBack = PLOT_BACK,
 }
 
 local COLORS = {
@@ -396,10 +402,100 @@ function MineBuilder.buildBase(plot: Model, origin: CFrame)
 		local w = box(origin, minV, maxV, Color3.new(1, 1, 1), Enum.Material.SmoothPlastic, barrier, "InvisibleWall")
 		w.Transparency = 1
 	end
-	wall(Vector3.new(PIT_MIN_X - 1, 0, PIT_FRONT_Z), Vector3.new(PIT_MAX_X + 1, 40, PIT_FRONT_Z + 1))
+	-- vorne rechts bleibt eine Lücke für die Leiter (Manager klauen!)
+	wall(Vector3.new(PIT_MIN_X - 1, 0, PIT_FRONT_Z), Vector3.new(LADDER_X0, 40, PIT_FRONT_Z + 1))
 	wall(Vector3.new(PIT_MIN_X - 1, 0, PIT_BACK_Z - 1), Vector3.new(PIT_MAX_X + 1, 40, PIT_BACK_Z))
 	wall(Vector3.new(PIT_MIN_X - 1, 0, PIT_BACK_Z), Vector3.new(PIT_MIN_X, 40, PIT_FRONT_Z))
-	wall(Vector3.new(PIT_MAX_X, 0, PIT_BACK_Z), Vector3.new(PIT_MAX_X + 1, 40, PIT_FRONT_Z))
+	wall(Vector3.new(PIT_MAX_X, 0, PIT_BACK_Z), Vector3.new(PIT_MAX_X + 1, 40, PIT_FRONT_Z + 1))
+
+	-- Wartungsleiter vorne rechts in der Grube + Stege zu jeder Ebene.
+	-- Je tiefer ein Manager steht, desto weiter muss ein Dieb klettern.
+	local ladder = folder("Ladder", base)
+	local ladderHeight = LH * MAX_LEVELS + 4
+	local truss = Instance.new("TrussPart")
+	truss.Name = "Truss"
+	truss.Anchored = true
+	truss.Size = Vector3.new(2, ladderHeight, 2)
+	truss.CFrame = origin * CFrame.new((LADDER_X0 + LADDER_X1) / 2, 2 - ladderHeight / 2, PIT_FRONT_Z - 1)
+	truss.Color = COLORS.Gold
+	truss.Material = Enum.Material.Metal
+	truss.Parent = ladder
+	for slot = 1, MAX_LEVELS do
+		local y = -LH * slot
+		box(
+			origin,
+			Vector3.new(LADDER_X0, y - 1, PIT_BACK_Z + 12),
+			Vector3.new(LADDER_X1, y, PIT_FRONT_Z - 2),
+			COLORS.DarkWood,
+			Enum.Material.WoodPlanks,
+			ladder,
+			"Catwalk"
+		)
+	end
+	local ladderSign = P({
+		Name = "LadderSign",
+		Size = Vector3.new(4, 1.6, 0.3),
+		CFrame = origin * CFrame.new((LADDER_X0 + LADDER_X1) / 2, 5, PIT_FRONT_Z + 1.5),
+		Color = COLORS.Gold,
+		Material = Enum.Material.SmoothPlastic,
+		Parent = ladder,
+	})
+	local signGui = Instance.new("SurfaceGui")
+	signGui.Face = Enum.NormalId.Back
+	signGui.CanvasSize = Vector2.new(200, 80)
+	signGui.Parent = ladderSign
+	local signText = Instance.new("TextLabel")
+	signText.Size = UDim2.fromScale(1, 1)
+	signText.BackgroundTransparency = 1
+	signText.Font = Enum.Font.FredokaOne
+	signText.TextScaled = true
+	signText.Text = "⬇ LEITER ⬇"
+	signText.TextColor3 = Color3.fromRGB(40, 24, 10)
+	signText.Parent = signGui
+
+	-- Laserwand um den ganzen Plot (sichtbar, wenn die Basis geschützt ist)
+	local lock = folder("LockBarrier", base)
+	local function laser(minV: Vector3, maxV: Vector3)
+		local w = box(origin, minV, maxV, Color3.fromRGB(255, 40, 90), Enum.Material.Neon, lock, "LockWall")
+		w.Transparency = 1
+		w.CanCollide = false
+		w.CanQuery = false
+		w.CanTouch = false
+	end
+	laser(Vector3.new(-PLOT_HALF, 0, PLOT_FRONT - 0.3), Vector3.new(PLOT_HALF, 22, PLOT_FRONT))
+	laser(Vector3.new(-PLOT_HALF, 0, PLOT_BACK), Vector3.new(PLOT_HALF, 22, PLOT_BACK + 0.3))
+	laser(Vector3.new(-PLOT_HALF, 0, PLOT_BACK), Vector3.new(-PLOT_HALF + 0.3, 22, PLOT_FRONT))
+	laser(Vector3.new(PLOT_HALF - 0.3, 0, PLOT_BACK), Vector3.new(PLOT_HALF, 22, PLOT_FRONT))
+
+	-- Schutz-Knopf neben dem Spawn
+	local button = folder("LockButton", base)
+	P({
+		Name = "Pedestal",
+		Size = Vector3.new(3, 3, 3),
+		CFrame = origin * CFrame.new(MineBuilder.Layout.LockButtonPos + Vector3.new(0, 1.5, 0)),
+		Color = COLORS.DarkMetal,
+		Material = Enum.Material.Metal,
+		Parent = button,
+	})
+	local knob = P({
+		Name = "Knob",
+		Size = Vector3.new(0.8, 2.2, 2.2),
+		CFrame = origin
+			* CFrame.new(MineBuilder.Layout.LockButtonPos + Vector3.new(0, 3.3, 0))
+			* CFrame.Angles(0, 0, math.pi / 2),
+		Color = Color3.fromRGB(255, 40, 90),
+		Material = Enum.Material.Neon,
+		Shape = Enum.PartType.Cylinder,
+		Parent = button,
+	})
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "LockPrompt"
+	prompt.ActionText = "Basis schützen 🔒"
+	prompt.ObjectText = "Laserwand"
+	prompt.HoldDuration = 0.4
+	prompt.MaxActivationDistance = 10
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = knob
 
 	local railing = folder("Railing", base)
 	local function rail(fromV: Vector3, toV: Vector3)

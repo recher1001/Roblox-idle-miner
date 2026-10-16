@@ -508,6 +508,184 @@ Config.Steal = {
 }
 
 ----------------------------------------------------------------------
+-- Manager klauen (Steal-a-Brainrot-Stil)
+--   Halte E am Manager einer fremden Station -> du trägst ihn. Bring ihn
+--   in deine eigene Basis, dann gehört er dir. Wirst du geschlagen, stirbst
+--   oder die Zeit läuft ab, geht er zurück zu seinem Besitzer.
+--   Tiefere Ebenen sind schwerer: längeres Halten + Leiter klettern.
+----------------------------------------------------------------------
+Config.ManagerSteal = {
+	Enabled = true,
+	HoldBase = 2, -- Sekunden halten (Aufzug/Händler und Ebene 1)
+	HoldPerLevel = 0.5, -- + so viel pro Ebene tiefer
+	HoldMax = 12,
+	MaxActivationDistance = 9,
+	CarryTime = 90, -- so lange hat der Dieb Zeit, nach Hause zu kommen
+	ThiefCooldown = 120,
+	VictimCooldown = 180,
+}
+
+----------------------------------------------------------------------
+-- Kampf-Items (wie in Steal a Brainrot). Der Schläger ist gratis beim
+-- Spawnen, die Slaps gibt es im Shop. Jeder Treffer lässt einen
+-- geklauten Manager fallen.
+--   Knockback = Stoßkraft, Freeze = Sekunden eingefroren, Range = Reichweite
+----------------------------------------------------------------------
+export type CombatItemDef = {
+	Id: string,
+	Name: string,
+	Icon: string,
+	Description: string,
+	Currency: string?, -- "Cash" | "Gems" | nil (gratis)
+	Cost: number,
+	Cooldown: number,
+	Range: number,
+	Knockback: number,
+	Freeze: number,
+	Color: Color3,
+}
+
+Config.Combat = {
+	Enabled = true,
+	Items = {
+		{
+			Id = "Bat",
+			Name = "Schläger",
+			Icon = "🏏",
+			Description = "Dein Start-Item: Diebe verlieren den Manager",
+			Currency = nil,
+			Cost = 0,
+			Cooldown = 0.8,
+			Range = 9,
+			Knockback = 45,
+			Freeze = 0,
+			Color = Color3.fromRGB(160, 110, 60),
+		},
+		{
+			Id = "Slap",
+			Name = "Klatscher",
+			Icon = "👋",
+			Description = "Haut Gegner weit weg",
+			Currency = "Cash",
+			Cost = 25e3,
+			Cooldown = 1.2,
+			Range = 10,
+			Knockback = 85,
+			Freeze = 0,
+			Color = Color3.fromRGB(255, 200, 150),
+		},
+		{
+			Id = "FreezeSlap",
+			Name = "Freeze-Slap",
+			Icon = "🧊",
+			Description = "Friert Gegner 3 Sekunden ein",
+			Currency = "Gems",
+			Cost = 75,
+			Cooldown = 8,
+			Range = 10,
+			Knockback = 0,
+			Freeze = 3,
+			Color = Color3.fromRGB(120, 220, 255),
+		},
+		{
+			Id = "MegaSlap",
+			Name = "Mega-Slap",
+			Icon = "💥",
+			Description = "Schleudert Gegner quer über die Map",
+			Currency = "Cash",
+			Cost = 25e6,
+			Cooldown = 2.5,
+			Range = 11,
+			Knockback = 160,
+			Freeze = 0,
+			Color = Color3.fromRGB(255, 80, 40),
+		},
+		{
+			Id = "GalaxySlap",
+			Name = "Galaxie-Slap",
+			Icon = "🌌",
+			Description = "Schleudert weg UND friert 2 Sekunden ein",
+			Currency = "Gems",
+			Cost = 300,
+			Cooldown = 6,
+			Range = 12,
+			Knockback = 120,
+			Freeze = 2,
+			Color = Color3.fromRGB(150, 70, 255),
+		},
+	} :: { CombatItemDef },
+	-- Basis schützen: Eindringlinge werden aus abgeschlossenen Basen geschoben
+	PushOutInterval = 0.25,
+}
+
+----------------------------------------------------------------------
+-- Stehl-Gadgets: im Shop für Geld, aber erst ab X Rebirths freigeschaltet.
+-- Aktivieren = Item ausrüsten und klicken/tippen.
+----------------------------------------------------------------------
+export type GadgetDef = {
+	Id: string,
+	Name: string,
+	Icon: string,
+	Description: string,
+	Cost: number, -- Geld
+	Rebirths: number, -- so viele Rebirths braucht man zum Kaufen
+	Cooldown: number,
+	Duration: number,
+	Color: Color3,
+}
+
+Config.Gadgets = {
+	{
+		Id = "Cloak",
+		Name = "Unsichtbarkeitsmantel",
+		Icon = "🧥",
+		Description = "10 s unsichtbar - auch deine Pets und der getragene Manager",
+		Cost = 1e6,
+		Rebirths = 1,
+		Cooldown = 45,
+		Duration = 10,
+		Color = Color3.fromRGB(150, 160, 255),
+	},
+	{
+		Id = "Boots",
+		Name = "Turbo-Schuhe",
+		Icon = "👟",
+		Description = "6 s doppelt so schnell - auch beim Tragen eines Managers",
+		Cost = 100e6,
+		Rebirths = 3,
+		Cooldown = 30,
+		Duration = 6,
+		Color = Color3.fromRGB(255, 120, 0),
+	},
+	{
+		Id = "Web",
+		Name = "Netzwerfer",
+		Icon = "🕸️",
+		Description = "Friert den nächsten Gegner vor dir (bis 45 Studs) 2,5 s ein",
+		Cost = 10e9,
+		Rebirths = 5,
+		Cooldown = 20,
+		Duration = 2.5,
+		Color = Color3.fromRGB(235, 235, 245),
+	},
+	{
+		Id = "LaserBreaker",
+		Name = "Laser-Brecher",
+		Icon = "🔓",
+		Description = "8 s durch Laserwände gehen und in geschützten Basen klauen",
+		Cost = 1e12,
+		Rebirths = 10,
+		Cooldown = 90,
+		Duration = 8,
+		Color = Color3.fromRGB(255, 40, 90),
+	},
+} :: { GadgetDef }
+Config.GadgetSettings = {
+	BootsMultiplier = 2,
+	WebRange = 45,
+}
+
+----------------------------------------------------------------------
 -- Sprinten (Shift oder Strg halten, auf dem Handy Sprint-Button)
 ----------------------------------------------------------------------
 Config.Sprint = {
@@ -987,7 +1165,16 @@ Config.Admin = {
 		{ Id = "Shield", Name = "Unbestehlbar", Icon = "🛡️", Description = "Niemand kann dich bestehlen" },
 		{ Id = "MineTurbo", Name = "Turbo-Mine", Icon = "🚀", Description = "Alle Arbeiter 3x schneller" },
 		{ Id = "GoldenTouch", Name = "Goldener Händler", Icon = "💰", Description = "3x Einkommen" },
+		{
+			Id = "Hammer",
+			Name = "Admin-Hammer",
+			Icon = "🔨",
+			Description = "Item: friert alle Gegner im großen Umkreis 15 s ein",
+		},
 	} :: { PowerDef },
+	HammerRadius = 45,
+	HammerFreeze = 15,
+	HammerCooldown = 4,
 	WalkSpeed = 64,
 	JumpPower = 125,
 	MineTurboMultiplier = 3,
@@ -1023,6 +1210,7 @@ Config.RateLimits = {
 	AdminAction = { Rate = 8, Burst = 16 },
 	AdminInfo = { Rate = 4, Burst = 8 },
 	ToggleCarpet = { Rate = 2, Burst = 4 },
+	BuyCombatItem = { Rate = 2, Burst = 4 },
 	OpenEgg = { Rate = 3, Burst = 5 },
 	EquipPet = { Rate = 10, Burst = 20 },
 	TradeOffer = { Rate = 8, Burst = 16 },
@@ -1080,6 +1268,8 @@ Config.Sounds = {
 	Reveal = "rbxasset://sounds/electronicpingshort.wav",
 	Alarm = "rbxasset://sounds/clickfast.wav",
 	Rebirth = "rbxasset://sounds/electronicpingshort.wav",
+	Swing = "rbxasset://sounds/swordslash.wav",
+	Hit = "rbxasset://sounds/swordlunge.wav",
 } :: { [string]: string }
 
 return Config

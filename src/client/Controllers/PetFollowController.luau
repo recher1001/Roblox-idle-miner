@@ -24,7 +24,7 @@ local PetFollowController = {}
 local MAX_DISTANCE = 220 -- weiter weg werden Pets nicht bewegt
 local SPACING = 3.4
 
-type Follower = { Part: Part, Phase: number }
+type Follower = { Part: Part, Gui: BillboardGui, Phase: number }
 type Entry = { Signature: string, Followers: { Follower } }
 
 local entries: { [Player]: Entry } = {}
@@ -82,7 +82,7 @@ local function makeFollower(petId: string, index: number): Follower?
 		sparkle.SparkleColor = rarity.Color
 		sparkle.Parent = part
 	end
-	return { Part = part, Phase = index * 1.3 }
+	return { Part = part, Gui = gui, Phase = index * 1.3 }
 end
 
 local function clear(entry: Entry)
@@ -132,6 +132,11 @@ local function step(dt: number)
 	for player, entry in entries do
 		local character = player.Character
 		local root = if character then character:FindFirstChild("HumanoidRootPart") else nil
+		-- Unsichtbarkeitsmantel versteckt auch die Pets
+		local hidden = character ~= nil and character:GetAttribute("Invisible") == true
+		for _, f in entry.Followers do
+			f.Gui.Enabled = not hidden
+		end
 		if root and root:IsA("BasePart") and (root.Position - camPos).Magnitude < MAX_DISTANCE then
 			local flat = CFrame.new(root.Position) * CFrame.Angles(0, select(2, root.CFrame:ToEulerAnglesYXZ()), 0)
 			for i, f in entry.Followers do

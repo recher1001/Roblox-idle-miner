@@ -64,6 +64,7 @@ export type PlayerData = {
 	PetSlotsRobux: number, -- mit Robux gekaufte Ausrüst-Slots
 	TradeTickets: number,
 	EggsOpened: number,
+	Items: { [string]: boolean }, -- gekaufte Kampf-Items (Slaps)
 	Stats: {
 		StealsDone: number,
 		TimesRobbed: number,

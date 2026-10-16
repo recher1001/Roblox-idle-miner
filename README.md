@@ -38,6 +38,11 @@ es werden **keine externen Assets** benötigt.
 | **Handeln** | Pets gegen Pets tauschen (nie Geld): Anfrage → beide legen Pets rein → beide „Bereit“ → 3-s-Countdown. Kostet beide 1 🎟️ Trading-Ticket (günstig im Shop) |
 | **Bestenlisten** | Zwei große Tafeln auf dem Platz (Top 10 mit Avatar, alle Server): **💰 Meistes Geld** und **💸 Geld pro Sekunde**. Dazu die Spalte „Pro Sek.“ in der Spielerliste |
 | **AFK-Zone** | Lila Plattform hinter dem Brunnen: pro Minute **+1 💎** und das Offline-Einkommen deiner Minen |
+| **Manager klauen** | **F halten** am Manager einer fremden Station (tiefere Ebenen = länger halten, max. 12 s; über die **Leiter** vorne rechts in die Grube klettern) → Manager tragen → in die eigene Basis bringen (90 s). Getroffen, gestorben oder zu spät = Manager geht zurück |
+| **Basis schützen** | 🔒-Knopf neben dem Spawn oder rechts im HUD: 60 s **Laserwand** um den ganzen Plot, Eindringlinge werden rausgeschoben, nichts kann geklaut werden |
+| **Waffen** | 🏏 Schläger gratis beim Spawnen, im Shop 👋 Klatscher, 🧊 Freeze-Slap (3 s einfrieren), 💥 Mega-Slap, 🌌 Galaxie-Slap. Jeder Treffer lässt geklaute Manager fallen |
+| **Stehl-Gadgets** | Ab X Rebirths im Shop: 🧥 Unsichtbarkeitsmantel (1), 👟 Turbo-Schuhe (3), 🕸️ Netzwerfer (5), 🔓 Laser-Brecher (10) |
+| **Admin-Hammer** | 🔨 Admin-Kraft: friert alle Gegner im Umkreis von 45 Studs 15 s ein (der Owner ist geschützt) |
 | **Rebirth** | Fortschritt zurücksetzen → Prestige-Punkte → dauerhafter Einkommens-Multiplikator + Gems |
 | **Offline-Einnahmen** | Beim Beitreten: Popup mit dem Verdienst seit dem letzten Besuch (max. 8 h, mit Gamepass 24 h), x2 für Gems |
 | **Shop** | Gem-Boosts (2x Geld, 2x Tempo, Schild, Geldkoffer), Robux-Produkte & Gamepasses (IDs in der Config) |
@@ -155,6 +160,14 @@ Trading-Tickets geben und alle Pet-Slots freischalten. Dafür gibt es das neue R
 Chat-Befehle für Admins (wenn der Chat sie durchlässt): `/cash 1e9`, `/gems 100`, `/unlockall`,
 `/managers`, `/cooldowns`, `/event`, `/petgive Hamster`, `/tickets 10`, `/petslots`.
 
+### Manager klauen & Kämpfen testen
+
+Mit 2 Spielern starten (siehe unten), `Config.Steal.NewPlayerProtection = 0` setzen.
+Spieler 2 läuft zur Basis von Spieler 1, klettert über die Leiter (vorne rechts an der Grube)
+zu einem Manager und hält **F**. Spieler 1 rüstet den 🏏 Schläger aus und haut ihn → der
+Manager geht zurück. Gadgets testen: im Admin-Menü Geld geben + `Rebirths` per Rebirth.
+Den 🔨 Admin-Hammer gibt es im Admin-Menü → Reiter ⚡ Kräfte.
+
 ### Pets, Eier & AFK-Zone testen
 
 - **Eier:** Menü **🐾 Pets** (links unten im Raster) oder am Stand **„EIER“** bei Eier-Emma (E drücken).
@@ -218,7 +231,8 @@ src/
 │     ├─ RebirthService     Prestige
 │     ├─ OfflineService     Offline-Einnahmen
 │     ├─ ShopService        Gem-Boosts, Gamepasses, Developer Products
-│     ├─ StealService       Stehlen, Bewachen, Basis abschließen
+│     ├─ StealService       Stehlen (Lager + Manager), Bewachen, Basis schützen (Laserwand)
+│     ├─ CombatService      Schläger, Slaps, Stehl-Gadgets, Einfrieren, Admin-Hammer
 │     ├─ RewardService      Tägliche Belohnung, Spielzeit-Gems
 │     ├─ EventService       Server-Events
 │     ├─ PetService         Eier öffnen, Pets ausrüsten/freilassen, Slots, Tickets
@@ -249,6 +263,8 @@ Alle Zahlen stehen in `src/shared/Config.luau` – du musst keinen anderen Code 
 - `Config.Pets` / `Config.Eggs` – Pets (Icon, Seltenheit, Multiplikator), Eier (Preis, Währung, Chancen in % – müssen 100 ergeben), Slots
 - `Config.Trading` – Ticketpreis, max. Pets pro Seite, Countdown
 - `Config.Leaderboards` – Aktualisierung, Plätze, Position der Tafeln, `MoneyStat` („TotalCash“ = insgesamt verdient, „Cash“ = Kontostand), `StoreVersion` (ändern = zurücksetzen)
+- `Config.ManagerSteal` – Halte-Zeit (Basis + pro Ebene), Trage-Zeit, Cooldowns
+- `Config.Combat` / `Config.Gadgets` – Waffen (Preis, Rückstoß, Einfrieren, Reichweite) und Gadgets (Preis, nötige Rebirths, Dauer)
 - `Config.Afk` – Intervall, Gems und Einkommen pro Intervall, Größe der Zone
 - `Config.Rebirth` – Mindestverdienst, Punkte-Formel, Multiplikator pro Punkt
 - `Config.Offline` – Obergrenze, Effizienz, x2-Preis

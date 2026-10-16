@@ -31,6 +31,7 @@ local EventService = require(script.Parent.EventService)
 local ManagerService = require(script.Parent.ManagerService)
 local MineService = require(script.Parent.MineService)
 local NetService = require(script.Parent.NetService)
+local CombatService = require(script.Parent.CombatService)
 local OfflineService = require(script.Parent.OfflineService)
 local PetService = require(script.Parent.PetService)
 local PlotService = require(script.Parent.PlotService)
@@ -308,7 +309,8 @@ local function applyPowers(session: Session)
 	local speed = Formulas.hasPower(data, "Speed") and equipped(character, "Speed")
 	local jump = Formulas.hasPower(data, "Jump") and equipped(character, "Jump")
 	local carpet = Formulas.hasPower(data, "Carpet") and equipped(character, "Carpet")
-	humanoid.WalkSpeed = if speed then CFG.WalkSpeed else 16
+	local mult = character:GetAttribute("SpeedMult")
+	humanoid.WalkSpeed = (if speed then CFG.WalkSpeed else 16) * (if type(mult) == "number" then mult else 1)
 	humanoid.UseJumpPower = true
 	humanoid.JumpPower = if jump then CFG.JumpPower else 50
 	local carpetActive = character:GetAttribute("CarpetActive") == true
@@ -325,6 +327,7 @@ local POWER_TOOLS: { ToolDef } = {
 	{ Id = "Carpet", Name = "🧞 Teppich", Tip = "Ausrüsten = fliegen! Leertaste/▲ hoch, Q/▼ runter" },
 	{ Id = "Speed", Name = "⚡ Speed-Spule", Tip = "Ausrüsten = super schnell rennen" },
 	{ Id = "Jump", Name = "🦘 Sprung-Spule", Tip = "Ausrüsten = riesig hoch springen" },
+	{ Id = "Hammer", Name = "🔨 Admin-Hammer", Tip = "Klicken = alle Gegner im Umkreis 15 s einfrieren" },
 }
 local WAND: ToolDef =
 	{ Id = "AdminWand", Name = "🪄 Admin-Stab", Tip = "Auf einen Spieler klicken = Admin-Menü für ihn" }
@@ -392,7 +395,11 @@ syncTools = function(session: Session)
 		local where = present[id] or {}
 		local inHand = character ~= nil and where[character] == true
 		if backpack and not inHand and not where[backpack] then
-			makeTool(def).Parent = backpack
+			local tool = makeTool(def)
+			if def.Id == "Hammer" then
+				CombatService.bindHammer(tool, player)
+			end
+			tool.Parent = backpack
 		end
 	end
 	applyPowers(session)
@@ -706,6 +713,16 @@ end
 -- Start
 ----------------------------------------------------------------------
 function AdminService.start()
+	-- Der echte Owner kann vom Admin-Hammer nicht eingefroren werden
+	CombatService.isProtected = function(player: Player): boolean
+		return AdminService.isRealOwner(player)
+	end
+	CombatService.onSpeedChanged = function(player: Player)
+		local session = SessionService.get(player)
+		if session then
+			applyPowers(session)
+		end
+	end
 	-- Owner-ID über den Namen ermitteln (falls nicht in der Config eingetragen)
 	if ownerUserId == 0 then
 		task.spawn(function()

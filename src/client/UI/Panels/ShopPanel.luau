@@ -5,6 +5,7 @@
 	  Boosts für Gems (zeitlich begrenzt, stapelbar)
 	  Gems / Geld für Robux (Developer Products)
 	  Pets & Handel (Eier, Pet-Slots für Geld, Trading-Tickets)
+	  Waffen (Schläger, Slaps) und Stehl-Gadgets (ab X Rebirths)
 	  Gamepasses (dauerhaft)
 	Robux-Käufe werden vom Server in ProcessReceipt bestätigt.
 ]]
@@ -227,6 +228,82 @@ local function build()
 				button.SetEnabled(
 					BigNum.gte(snap.Data.Cash, cost) and snap.Data.TradeTickets + count <= Config.Trading.MaxTickets
 				)
+			end,
+		})
+	end
+
+	section("⚔️ Waffen", nextOrder())
+	local weapons = grid(nextOrder())
+	for i, item in Config.Combat.Items do
+		local accent = if item.Currency == "Gems" then Theme.Colors.Gem else Theme.Colors.Red
+		local card = itemCard(weapons, item.Icon, item.Name, item.Description, accent, i)
+		local button = buyButton(
+			card,
+			if item.Currency == "Gems" then Theme.Colors.Purple else Theme.Colors.Red,
+			function()
+				Remote.send("BuyCombatItem", { ItemId = item.Id })
+			end
+		)
+		table.insert(entries, {
+			Button = button,
+			Update = function()
+				local snap = ClientState.Snapshot
+				if not snap then
+					return
+				end
+				local data = snap.Data
+				if item.Currency == nil then
+					button.SetText("✓ Gratis im Inventar")
+					button.SetEnabled(false)
+				elseif data.Items[item.Id] then
+					button.SetText("✓ Besitzt du")
+					button.SetEnabled(false)
+				elseif item.Currency == "Gems" then
+					button.SetText(string.format("%d 💎", item.Cost))
+					button.SetEnabled(data.Gems >= item.Cost)
+				else
+					local cost = BigNum.new(item.Cost)
+					button.SetText(BigNum.formatMoney(cost, Config.CurrencySymbol))
+					button.SetEnabled(BigNum.gte(data.Cash, cost))
+				end
+			end,
+		})
+	end
+
+	section("🕵️ Stehl-Gadgets", nextOrder())
+	local gadgets = grid(nextOrder())
+	for i, gadget in Config.Gadgets do
+		local card = itemCard(
+			gadgets,
+			gadget.Icon,
+			gadget.Name,
+			gadget.Description
+				.. string.format("  (ab %d Rebirth%s)", gadget.Rebirths, if gadget.Rebirths == 1 then "" else "s"),
+			Theme.Colors.Cyan,
+			i
+		)
+		local cost = BigNum.new(gadget.Cost)
+		local button = buyButton(card, Theme.Colors.Cyan, function()
+			Remote.send("BuyCombatItem", { ItemId = gadget.Id })
+		end)
+		table.insert(entries, {
+			Button = button,
+			Update = function()
+				local snap = ClientState.Snapshot
+				if not snap then
+					return
+				end
+				local data = snap.Data
+				if data.Items[gadget.Id] then
+					button.SetText("✓ Besitzt du")
+					button.SetEnabled(false)
+				elseif data.Rebirths < gadget.Rebirths then
+					button.SetText(string.format("🔒 %d/%d Rebirths", data.Rebirths, gadget.Rebirths))
+					button.SetEnabled(false)
+				else
+					button.SetText(BigNum.formatMoney(cost, Config.CurrencySymbol))
+					button.SetEnabled(BigNum.gte(data.Cash, cost))
+				end
 			end,
 		})
 	end

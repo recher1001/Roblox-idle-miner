@@ -6,6 +6,7 @@
 	Sounds, Floating-Text ("+$250"), Partikel, Banner, Popups.
 ]]
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -137,6 +138,39 @@ local function onEffect(kind: string, payload: { [string]: any })
 	elseif kind == "Robbed" then
 		Sounds.play("Alarm", 0.7)
 		Popups.banner("🚨 AUSGERAUBT!", Theme.Colors.Red, tostring(payload.Thief or "") .. " hat dich bestohlen!")
+	elseif kind == "Knockback" then
+		local character = Players.LocalPlayer.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local velocity = payload.Velocity
+		if root and root:IsA("BasePart") and humanoid and typeof(velocity) == "Vector3" and not root.Anchored then
+			humanoid.PlatformStand = true
+			root.AssemblyLinearVelocity = velocity
+			Sounds.play("Error", 0.7)
+			task.delay(0.7, function()
+				humanoid.PlatformStand = false
+			end)
+		end
+	elseif kind == "Frozen" then
+		Toasts.show(string.format("🧊 Eingefroren für %ds!", tonumber(payload.Seconds) or 0), "info", 2)
+	elseif kind == "ManagerTheft" then
+		Sounds.play("Alarm", 0.7)
+		Popups.banner(
+			"🚨 MANAGER-DIEB!",
+			Theme.Colors.Red,
+			string.format(
+				"%s klaut %s – hau ihn mit dem 🏏 Schläger!",
+				tostring(payload.Thief),
+				tostring(payload.Name)
+			)
+		)
+	elseif kind == "ManagerStolen" then
+		Sounds.play("Rebirth", 1.2)
+		Popups.banner(
+			"👔 MANAGER GEKLAUT!",
+			Theme.Colors.Gold,
+			string.format("%s (%s) arbeitet jetzt für dich", tostring(payload.Name), tostring(payload.Rarity))
+		)
 	elseif kind == "Trade" then
 		Sounds.play("Rebirth", 1.3)
 		Popups.banner("🤝 HANDEL ERFOLGREICH!", Theme.Colors.Cyan, "Deine neuen Pets sind im Inventar")

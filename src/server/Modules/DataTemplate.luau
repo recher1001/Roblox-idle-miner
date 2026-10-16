@@ -64,6 +64,7 @@ function DataTemplate.new(): PlayerData
 		PetSlotsRobux = 0,
 		TradeTickets = 0,
 		EggsOpened = 0,
+		Items = {},
 		Stats = {
 			StealsDone = 0,
 			TimesRobbed = 0,
@@ -277,6 +278,18 @@ function DataTemplate.sanitize(raw: any): PlayerData
 	data.PetSlotsRobux = math.floor(num(raw.PetSlotsRobux, 0, 0, Config.Pets.RobuxSlots))
 	data.TradeTickets = math.floor(num(raw.TradeTickets, 0, 0, Config.Trading.MaxTickets))
 	data.EggsOpened = math.floor(num(raw.EggsOpened, 0, 0))
+	if type(raw.Items) == "table" then
+		for _, def in Config.Combat.Items do
+			if raw.Items[def.Id] == true then
+				data.Items[def.Id] = true
+			end
+		end
+		for _, def in Config.Gadgets do
+			if raw.Items[def.Id] == true then
+				data.Items[def.Id] = true
+			end
+		end
+	end
 	-- nie mehr ausgerüstet als Slots vorhanden
 	local slots = Formulas.petSlots(data)
 	local equipped = 0

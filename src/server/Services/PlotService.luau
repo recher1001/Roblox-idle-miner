@@ -45,6 +45,18 @@ local plotsFolder: Folder? = nil
 -- Callbacks (werden von anderen Services gesetzt, vermeidet zyklische requires)
 local stationClickHandler: ((Session, string) -> ())? = nil
 local depotPromptHandler: ((Player, Session, string) -> ())? = nil
+local managerPromptHandler: ((Player, Session, string, string) -> ())? = nil
+local lockPromptHandler: ((Player, Session) -> ())? = nil
+
+--- Manager klauen: (Dieb, Opfer, StationKey, phase "begin"/"trigger")
+function PlotService.setManagerPromptHandler(fn: (Player, Session, string, string) -> ())
+	managerPromptHandler = fn
+end
+
+--- Schutz-Knopf in der Basis gedrückt
+function PlotService.setLockPromptHandler(fn: (Player, Session) -> ())
+	lockPromptHandler = fn
+end
 
 function PlotService.setStationClickHandler(fn: (Session, string) -> ())
 	stationClickHandler = fn
@@ -87,6 +99,44 @@ function PlotService.getDepotPosition(session: Session): Vector3?
 		return nil
 	end
 	return (plot.Origin * CFrame.new(MineBuilder.Layout.DepotPos)).Position
+end
+
+--- Index des Plots, auf dem eine Weltposition liegt (oder nil)
+function PlotService.plotIndexAt(position: Vector3): number?
+	local L = MineBuilder.Layout
+	for _, plot in plots do
+		local localPos = plot.Origin:PointToObjectSpace(position)
+		if
+			math.abs(localPos.X) <= L.PlotHalf
+			and localPos.Z >= L.PlotBack
+			and localPos.Z <= L.PlotFront
+			and localPos.Y > -200
+			and localPos.Y < 60
+		then
+			return plot.Index
+		end
+	end
+	return nil
+end
+
+--- Steht die Position oben in der eigenen Basis (nicht in der Grube)?
+function PlotService.isOnSurfaceOf(session: Session, position: Vector3): boolean
+	local plot = plots[session.PlotIndex]
+	if not plot or PlotService.plotIndexAt(position) ~= plot.Index then
+		return false
+	end
+	return plot.Origin:PointToObjectSpace(position).Y > -6
+end
+
+--- Punkt knapp vor der Basis (zum Hinausschieben von Eindringlingen)
+function PlotService.outsideCFrame(index: number, position: Vector3): CFrame?
+	local plot = plots[index]
+	if not plot then
+		return nil
+	end
+	local localPos = plot.Origin:PointToObjectSpace(position)
+	local x = math.clamp(localPos.X, -MineBuilder.Layout.PlotHalf + 4, MineBuilder.Layout.PlotHalf - 4)
+	return plot.Origin * CFrame.new(x, 4, MineBuilder.Layout.PlotFront + 6)
 end
 
 function PlotService.getSpawnCFrame(session: Session): CFrame?
@@ -155,6 +205,20 @@ local function connectDepotPrompt(session: Session, plot: PlotInfo)
 	end))
 end
 
+local function connectLockPrompt(session: Session, plot: PlotInfo)
+	local base = plot.Model:FindFirstChild("Base")
+	local prompt = base and base:FindFirstChild("LockPrompt", true)
+	if not prompt or not prompt:IsA("ProximityPrompt") then
+		return
+	end
+	prompt:SetAttribute("OwnerOnly", session.Player.UserId)
+	plot.Maid:Give(prompt.Triggered:Connect(function(player: Player)
+		if lockPromptHandler and not session.Ending then
+			lockPromptHandler(player, session)
+		end
+	end))
+end
+
 local function connectAllStations(session: Session, plot: PlotInfo)
 	local mine = plot.Model:FindFirstChild("Mine")
 	if not mine then
@@ -213,6 +277,7 @@ local function assign(session: Session)
 	MineBuilder.buildMine(plot.Model, plot.Origin, #session.Data.Shafts, SessionService.currentSection(session))
 	connectAllStations(session, plot)
 	connectDepotPrompt(session, plot)
+	connectLockPrompt(session, plot)
 
 	local player = session.Player
 	session.Maid:Give(player.CharacterAdded:Connect(function(character)
@@ -278,8 +343,68 @@ local function setInfo(station: Instance, guiName: string, title: string, sub: s
 	end
 end
 
+--- Halte-Dauer zum Klauen: tiefere Ebenen dauern länger
+local function stealHoldDuration(key: string): number
+	local cfg = Config.ManagerSteal
+	local area, index = Formulas.parseKey(key)
+	local depth = if area == "Shaft" and index then index - 1 else 0
+	return math.min(cfg.HoldMax, cfg.HoldBase + cfg.HoldPerLevel * depth)
+end
+
+--- Prompt "Manager klauen" an der Station (nur wenn ein Manager dort steht)
+local function stealSpot(session: Session, station: Model, key: string, manager: Types.ManagerData?)
+	local existing = station:FindFirstChild("StealSpot")
+	if not manager or not Config.ManagerSteal.Enabled then
+		if existing then
+			existing:Destroy()
+		end
+		return
+	end
+	if existing then
+		local prompt = existing:FindFirstChildOfClass("ProximityPrompt")
+		if prompt then
+			prompt.ObjectText = string.format("%s (%s)", manager.Name, Formulas.rarityDef(manager.Rarity).Name)
+		end
+		return
+	end
+	local spot = station:GetAttribute("ManagerSpot")
+	if typeof(spot) ~= "CFrame" then
+		return
+	end
+	local part = Instance.new("Part")
+	part.Name = "StealSpot"
+	part.Size = Vector3.new(2, 2, 2)
+	part.CFrame = spot * CFrame.new(0, 3, 0)
+	part.Transparency = 1
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Parent = station
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Manager klauen 👔"
+	prompt.ObjectText = string.format("%s (%s)", manager.Name, Formulas.rarityDef(manager.Rarity).Name)
+	prompt.HoldDuration = stealHoldDuration(key)
+	prompt.MaxActivationDistance = Config.ManagerSteal.MaxActivationDistance
+	prompt.RequiresLineOfSight = false
+	prompt.KeyboardKeyCode = Enum.KeyCode.F
+	prompt:SetAttribute("StealOwner", session.Player.UserId)
+	prompt.Parent = part
+	prompt.PromptButtonHoldBegan:Connect(function(thief: Player)
+		if managerPromptHandler and not session.Ending then
+			managerPromptHandler(thief, session, key, "begin")
+		end
+	end)
+	prompt.Triggered:Connect(function(thief: Player)
+		if managerPromptHandler and not session.Ending then
+			managerPromptHandler(thief, session, key, "trigger")
+		end
+	end)
+end
+
 local function managerVisual(session: Session, station: Model, key: string, now: number)
 	local manager = Formulas.managerFor(session.Data, key)
+	stealSpot(session, station, key, manager)
 	local color = if manager then Formulas.rarityDef(manager.Rarity).Color else nil
 	local signature = if manager
 		then string.format("%s:%s:%d", manager.Id, manager.Rarity, manager.FriendUserId or 0)
@@ -378,10 +503,20 @@ function PlotService.updateVisuals(session: Session)
 			MineBuilder.setCrateFill(depot, ratio, MineBuilder.Colors.Gold)
 			local prompt = depot:FindFirstChild("StealPrompt", true)
 			if prompt and prompt:IsA("ProximityPrompt") then
+				prompt:SetAttribute("StealOwner", session.Player.UserId)
 				prompt.Enabled = Config.Steal.Enabled and not locked
 				prompt.ObjectText = if protected
 					then "🛡️ Geschützt"
 					else "Aufzugslager von " .. session.Player.DisplayName
+			end
+		end
+		local base = plot.Model:FindFirstChild("Base")
+		local barrier = base and base:FindFirstChild("LockBarrier")
+		if barrier then
+			for _, wall in barrier:GetChildren() do
+				if wall:IsA("BasePart") then
+					wall.Transparency = if locked then 0.55 else 1
+				end
 			end
 		end
 		local dome = elevator:FindFirstChild("LockDome")

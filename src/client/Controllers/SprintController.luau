@@ -47,7 +47,9 @@ local function apply()
 	-- beim Fliegen (Teppich) nicht eingreifen
 	local character = player.Character
 	local flying = character ~= nil and character:GetAttribute("CarpetActive") == true
-	local active = sprinting and not flying
+	-- wer einen geklauten Manager trägt, kann nicht sprinten
+	local carrying = character ~= nil and character:GetAttribute("Carrying") == true
+	local active = sprinting and not flying and not carrying
 	applying = true
 	h.WalkSpeed = if active then baseSpeed * Config.Sprint.Multiplier else baseSpeed
 	applying = false
@@ -82,6 +84,7 @@ local function bindCharacter(character: Model)
 	humanoid = h
 	baseSpeed = h.WalkSpeed
 	-- Änderungen vom Server (Speed-Spule an/aus) als neue Basis übernehmen
+	character:GetAttributeChangedSignal("Carrying"):Connect(apply)
 	h:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
 		if applying then
 			return
