@@ -565,7 +565,7 @@ function AdminPanel.start()
 	end)
 
 	openButton = Components.button({
-		Text = "Admin",
+		Text = "🛠 Admin",
 		Color = Theme.Colors.Orange,
 		Size = UDim2.fromOffset(130, 52),
 		-- oben links (unten links liegt auf dem Handy der Joystick)
@@ -576,7 +576,6 @@ function AdminPanel.start()
 			PanelManager.toggle("Admin")
 		end,
 	})
-	Components.addFace(openButton, "Cowboy", 42)
 	openButton.Instance.Visible = false
 
 	-- 🪄 Admin-Stab: auf einen Spieler klicken -> Admin-Menü für diesen Spieler

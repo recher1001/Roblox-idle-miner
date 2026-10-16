@@ -22,7 +22,6 @@ local ClientState = require(script.Parent.Parent.ClientState)
 local Remote = require(script.Parent.Parent.Remote)
 local Anim = require(script.Parent.Anim)
 local Components = require(script.Parent.Components)
-local Faces = require(script.Parent.Faces)
 local FloatingText = require(script.Parent.FloatingText)
 local PanelManager = require(script.Parent.PanelManager)
 local Root = require(script.Parent.Root)
@@ -224,7 +223,7 @@ local function menuButton(
 	onClick: () -> ()
 ): Components.Button
 	local b = Components.button({
-		Text = text,
+		Text = string.format('<font size="40">%s</font>\n%s', icon, text),
 		Color = color,
 		Size = UDim2.fromOffset(106, 94),
 		TextSize = 17,
@@ -233,21 +232,7 @@ local function menuButton(
 		OnClick = onClick,
 		Shine = true,
 	})
-	-- gezeichnetes Cartoon-Gesicht statt Emoji
-	local faceName = Components.FaceForIcon[icon]
-	if faceName then
-		local face = Faces.create(faceName, 50, b.Instance.ZIndex + 2)
-		face.AnchorPoint = Vector2.new(0.5, 0)
-		face.Position = UDim2.new(0.5, 0, 0, 7)
-		face.Parent = b.Instance
-		b.Label.TextYAlignment = Enum.TextYAlignment.Bottom
-		local pad = Instance.new("UIPadding")
-		pad.PaddingBottom = UDim.new(0, 7)
-		pad.Parent = b.Label
-	else
-		b.Label.Text = string.format('<font size="40">%s</font>\n%s', icon, text)
-		b.Label.LineHeight = 0.95
-	end
+	b.Label.LineHeight = 0.95
 	return b
 end
 
@@ -318,7 +303,7 @@ local function buildActions(parent: Frame)
 	}, { Util.list(Enum.FillDirection.Vertical, 12, Enum.HorizontalAlignment.Right) })
 
 	boostAllButton = Components.button({
-		Text = "Alle boosten",
+		Text = "⚡ Alle boosten",
 		Color = Theme.Colors.Gold,
 		Size = UDim2.fromOffset(186, 62),
 		TextSize = 20,
@@ -332,9 +317,8 @@ local function buildActions(parent: Frame)
 			end
 		end,
 	})
-	Components.addFace(boostAllButton, "Devil", 46)
 	lockButton = Components.button({
-		Text = "Abschließen",
+		Text = "🔒 Abschließen",
 		Color = Theme.Colors.Blue,
 		Size = UDim2.fromOffset(186, 62),
 		TextSize = 20,
@@ -347,7 +331,6 @@ local function buildActions(parent: Frame)
 			end
 		end,
 	})
-	Components.addFace(lockButton, "Cold", 46)
 end
 
 local function refreshActions(snap: Types.Snapshot)
@@ -364,18 +347,18 @@ local function refreshActions(snap: Types.Snapshot)
 	end
 	boostAllButton.Instance.Visible = assigned > 0
 	boostAllButton.SetEnabled(ready > 0)
-	boostAllButton.SetText(if ready > 0 then string.format("Alle boosten (%d)", ready) else "Lädt...")
+	boostAllButton.SetText(if ready > 0 then string.format("⚡ Alle boosten (%d)", ready) else "⚡ Lädt...")
 	menuDots.Managers.Visible = ready > 0
 
 	if snap.LockedUntil > now then
 		lockButton.SetEnabled(false)
-		lockButton.SetText(Formulas.formatDuration(snap.LockedUntil - now))
+		lockButton.SetText("🔒 " .. Formulas.formatDuration(snap.LockedUntil - now))
 	elseif data.LockCooldownUntil > now then
 		lockButton.SetEnabled(false)
-		lockButton.SetText("Lädt " .. Formulas.formatDuration(data.LockCooldownUntil - now))
+		lockButton.SetText("⏳ " .. Formulas.formatDuration(data.LockCooldownUntil - now))
 	else
 		lockButton.SetEnabled(true)
-		lockButton.SetText("Abschließen")
+		lockButton.SetText("🔒 Abschließen")
 	end
 	lockButton.Instance.Visible = Config.Steal.Enabled
 
@@ -438,7 +421,7 @@ local function buildCameraButton(parent: Frame, onCamera: () -> boolean, isActiv
 	Anim.pulse(pulse, 0.04, 3)
 	local button: Components.Button
 	button = Components.button({
-		Text = "2D-MINENANSICHT",
+		Text = "🎥 2D-MINENANSICHT",
 		Color = Theme.Colors.Cyan,
 		Size = UDim2.fromScale(1, 1),
 		TextSize = 22,
@@ -447,17 +430,16 @@ local function buildCameraButton(parent: Frame, onCamera: () -> boolean, isActiv
 		Rainbow = true,
 		OnClick = function()
 			local active = onCamera()
-			button.SetText(if active then "ZURÜCK ZUM SPIEL" else "2D-MINENANSICHT")
+			button.SetText(if active then "⬅ ZURÜCK ZUM SPIEL" else "🎥 2D-MINENANSICHT")
 			button.SetColor(if active then Theme.Colors.Orange else Theme.Colors.Cyan)
 		end,
 	})
-	Components.addFace(button, "Nerd", 54)
 	-- Text aktuell halten (die Ansicht kann auch anders geschlossen werden)
 	task.spawn(function()
 		while holder.Parent do
 			task.wait(0.3)
 			local active = isActive()
-			button.SetText(if active then "ZURÜCK ZUM SPIEL" else "2D-MINENANSICHT")
+			button.SetText(if active then "⬅ ZURÜCK ZUM SPIEL" else "🎥 2D-MINENANSICHT")
 			button.SetColor(if active then Theme.Colors.Orange else Theme.Colors.Cyan)
 		end
 	end)

@@ -66,7 +66,7 @@ local function setSprinting(value: boolean)
 	local b = touchButton
 	if b then
 		b.SetColor(if value then Theme.Colors.Lime else Theme.Colors.Orange)
-		b.SetText(if value then "SPRINT AN" else "Sprint")
+		b.SetText(if value then "🏃 SPRINT AN" else "🏃 Sprint")
 	end
 end
 
@@ -117,7 +117,7 @@ function SprintController.start()
 
 	if UserInputService.TouchEnabled then
 		touchButton = Components.button({
-			Text = "Sprint",
+			Text = "🏃 Sprint",
 			Color = Theme.Colors.Orange,
 			Size = UDim2.fromOffset(150, 66),
 			Position = UDim2.new(1, -14, 1, -250),
@@ -130,7 +130,6 @@ function SprintController.start()
 				refresh()
 			end,
 		})
-		Components.addFace(touchButton :: Components.Button, "Laughing", 46)
 	end
 
 	player.CharacterAdded:Connect(bindCharacter)

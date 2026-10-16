@@ -122,6 +122,63 @@ function Util.pop(scale: UIScale, amount: number?)
 end
 
 --- Textlabel mit Standardwerten
+----------------------------------------------------------------------
+-- Emoji-Design im Cartoon-Stil: jedes Emoji bekommt eine dicke, dunkle
+-- Umrandung (RichText <stroke>) - der restliche Text bleibt unverändert.
+----------------------------------------------------------------------
+local EMOJI_OUTLINE = "#1E100A"
+
+local function isEmoji(cp: number): boolean
+	return (cp >= 0x2190 and cp <= 0x2BFF) -- Pfeile, Symbole, Dingbats (⬆ ⚡ ⭐ ✨ ❤ ...)
+		or (cp >= 0x1F000 and cp <= 0x1FAFF) -- Emojis (💰 💎 👔 🛒 🎁 ...)
+		or cp == 0xFE0F -- Emoji-Variante
+		or cp == 0x200D -- Verbinder (zusammengesetzte Emojis)
+end
+
+--- Umschließt alle Emojis eines Textes mit einer dicken dunklen Umrandung
+function Util.outlineEmojis(text: string, thickness: number): string
+	if text == "" or string.find(text, "<stroke", 1, true) then
+		return text
+	end
+	local ok, result = pcall(function()
+		local out = {}
+		local run = {}
+		local inTag = false
+		local function flush()
+			if #run > 0 then
+				table.insert(
+					out,
+					string.format(
+						'<stroke color="%s" thickness="%d" joins="round">%s</stroke>',
+						EMOJI_OUTLINE,
+						thickness,
+						table.concat(run)
+					)
+				)
+				table.clear(run)
+			end
+		end
+		for _, cp in utf8.codes(text) do
+			local ch = utf8.char(cp)
+			if ch == "<" then
+				inTag = true
+			end
+			if not inTag and isEmoji(cp) then
+				table.insert(run, ch)
+			else
+				flush()
+				table.insert(out, ch)
+			end
+			if ch == ">" then
+				inTag = false
+			end
+		end
+		flush()
+		return table.concat(out)
+	end)
+	return if ok then result else text
+end
+
 function Util.label(props: { [string]: any }): TextLabel
 	local defaults: { [string]: any } = {
 		BackgroundTransparency = 1,
@@ -135,7 +192,26 @@ function Util.label(props: { [string]: any }): TextLabel
 	for k, v in props do
 		defaults[k] = v
 	end
-	return Util.new("TextLabel", defaults)
+	local label: TextLabel = Util.new("TextLabel", defaults)
+	-- Emojis automatisch im Cartoon-Stil umranden (auch bei späteren Textänderungen)
+	local applying = false
+	local function apply()
+		if applying or not label.RichText then
+			return
+		end
+		applying = true
+		-- große Emojis (z. B. <font size="40">) bekommen eine dickere Umrandung
+		local fontSize = tonumber(string.match(label.Text, '<font size="(%d+)"')) or 0
+		local thickness = math.max(2, math.floor(math.max(label.TextSize, fontSize) / 11))
+		local wrapped = Util.outlineEmojis(label.Text, thickness)
+		if wrapped ~= label.Text then
+			label.Text = wrapped
+		end
+		applying = false
+	end
+	apply()
+	label:GetPropertyChangedSignal("Text"):Connect(apply)
+	return label
 end
 
 return Util
