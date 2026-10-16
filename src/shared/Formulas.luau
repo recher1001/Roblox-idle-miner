@@ -321,6 +321,142 @@ function Formulas.hasPower(data: PlayerData, powerId: string): boolean
 	return data.Powers ~= nil and data.Powers[powerId] == true
 end
 
+----------------------------------------------------------------------
+-- Pets & Eier
+----------------------------------------------------------------------
+local petById: { [string]: Config.PetDef } = {}
+for _, def in Config.Pets.List do
+	petById[def.Id] = def
+end
+local petRarityById: { [string]: Config.PetRarityDef } = {}
+local petRarityIndex: { [string]: number } = {}
+for i, def in Config.Pets.Rarities do
+	petRarityById[def.Id] = def
+	petRarityIndex[def.Id] = i
+end
+
+function Formulas.petDef(petId: string): Config.PetDef?
+	return petById[petId]
+end
+
+function Formulas.petRarity(rarityId: string): Config.PetRarityDef
+	return petRarityById[rarityId] or Config.Pets.Rarities[1]
+end
+
+function Formulas.petRarityIndex(rarityId: string): number
+	return petRarityIndex[rarityId] or 1
+end
+
+function Formulas.eggDef(eggId: string): Config.EggDef?
+	for _, egg in Config.Eggs do
+		if egg.Id == eggId then
+			return egg
+		end
+	end
+	return nil
+end
+
+--- Chance (in %) auf ein bestimmtes Pet, falls es aus irgendeinem Ei kommt
+function Formulas.petChance(petId: string): number?
+	for _, egg in Config.Eggs do
+		for _, c in egg.Chances do
+			if c.Pet == petId then
+				return c.Chance
+			end
+		end
+	end
+	return nil
+end
+
+--- "1%", "0.5%", "0.012%"
+function Formulas.formatChance(chance: number): string
+	local text = string.format(if chance >= 10 then "%.1f" else "%.3f", chance)
+	text = string.gsub(text, "0+$", "")
+	text = string.gsub(text, "%.$", "")
+	return text .. "%"
+end
+
+function Formulas.formatPetMultiplier(m: number): string
+	if m >= 100 then
+		return string.format("x%d", math.floor(m + 0.5))
+	end
+	local text = string.format("%.2f", m)
+	text = string.gsub(text, "0+$", "")
+	text = string.gsub(text, "%.$", "")
+	return "x" .. text
+end
+
+--- Ausrüst-Slots (Basis + mit Geld + mit Robux gekaufte, mit Limit)
+function Formulas.petSlots(data: PlayerData): number
+	return math.min(Config.Pets.MaxSlots, Config.Pets.BaseSlots + data.PetSlotsBought + data.PetSlotsRobux)
+end
+
+--- Geld-Preis für den nächsten Slot (nil = alle Geld-Slots gekauft)
+function Formulas.nextCashSlotCost(data: PlayerData): BigNum?
+	local cost = Config.Pets.CashSlotCosts[data.PetSlotsBought + 1]
+	if not cost or Formulas.petSlots(data) >= Config.Pets.MaxSlots then
+		return nil
+	end
+	return BigNum.new(cost)
+end
+
+--- Kann noch ein Robux-Slot gekauft werden?
+function Formulas.canBuyRobuxSlot(data: PlayerData): boolean
+	return data.PetSlotsRobux < Config.Pets.RobuxSlots and Formulas.petSlots(data) < Config.Pets.MaxSlots
+end
+
+--- Einkommens-Multiplikator aller ausgerüsteten Pets (Boni addieren sich)
+function Formulas.petMultiplier(data: PlayerData): number
+	local bonus = 0
+	local counted = 0
+	local slots = Formulas.petSlots(data)
+	for _, pet in data.Pets do
+		if pet.Equipped and counted < slots then
+			local def = petById[pet.Pet]
+			if def then
+				bonus += def.Multiplier - 1
+				counted += 1
+			end
+		end
+	end
+	return 1 + bonus
+end
+
+function Formulas.equippedCount(data: PlayerData): number
+	local n = 0
+	for _, pet in data.Pets do
+		if pet.Equipped then
+			n += 1
+		end
+	end
+	return n
+end
+
+--- Pets nach Stärke sortiert (stärkstes zuerst) - für "Beste ausrüsten"
+function Formulas.sortPetsByPower(pets: { Types.PetData }): { Types.PetData }
+	local sorted = table.clone(pets)
+	table.sort(sorted, function(a, b)
+		local da, db = petById[a.Pet], petById[b.Pet]
+		local ma = if da then da.Multiplier else 0
+		local mb = if db then db.Multiplier else 0
+		if ma ~= mb then
+			return ma > mb
+		end
+		return a.Id < b.Id
+	end)
+	return sorted
+end
+
+--- Preis eines Eis (Geld-Eier werden mit der tiefsten Ebene teurer)
+function Formulas.eggCost(data: PlayerData, egg: Config.EggDef): BigNum
+	local base = BigNum.new(egg.BaseCost)
+	if egg.Currency ~= "Cash" or not egg.DepthFactor then
+		return base
+	end
+	local depthCost = BigNum.mulNum(Formulas.shaftDef(#data.Shafts).UnlockCost, egg.DepthFactor)
+	return BigNum.max(base, depthCost)
+end
+
 function Formulas.rebirthMultiplier(points: number): number
 	return 1 + points * Config.Rebirth.MultiplierPerPoint
 end
@@ -338,6 +474,7 @@ function Formulas.cashMultiplier(data: PlayerData, ctx: CalcContext): number
 	if Formulas.hasPower(data, "GoldenTouch") then
 		mult *= Config.Admin.GoldenTouchMultiplier
 	end
+	mult *= Formulas.petMultiplier(data)
 	return mult
 end
 

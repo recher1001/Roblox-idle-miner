@@ -58,6 +58,12 @@ function DataTemplate.new(): PlayerData
 		LockCooldownUntil = 0,
 		ReceiptIds = {},
 		Powers = {},
+		Pets = {},
+		NextPetId = 1,
+		PetSlotsBought = 0,
+		PetSlotsRobux = 0,
+		TradeTickets = 0,
+		EggsOpened = 0,
 		Stats = {
 			StealsDone = 0,
 			TimesRobbed = 0,
@@ -166,6 +172,31 @@ local function sanitizeManagers(raw: any, data: PlayerData): { ManagerData }
 	return result
 end
 
+local function sanitizePets(raw: any): { Types.PetData }
+	local result: { Types.PetData } = {}
+	if type(raw) ~= "table" then
+		return result
+	end
+	local usedIds: { [string]: boolean } = {}
+	for _, p in raw do
+		if #result >= Config.Pets.MaxOwned then
+			break
+		end
+		if
+			type(p) == "table"
+			and type(p.Id) == "string"
+			and #p.Id <= 16
+			and not usedIds[p.Id]
+			and type(p.Pet) == "string"
+			and Formulas.petDef(p.Pet) ~= nil
+		then
+			usedIds[p.Id] = true
+			table.insert(result, { Id = p.Id, Pet = p.Pet, Equipped = p.Equipped == true })
+		end
+	end
+	return result
+end
+
 --- Nimmt beliebige Rohdaten und liefert garantiert gültige PlayerData
 function DataTemplate.sanitize(raw: any): PlayerData
 	local data = DataTemplate.new()
@@ -230,6 +261,30 @@ function DataTemplate.sanitize(raw: any): PlayerData
 		for _, def in Config.Admin.Powers do
 			if raw.Powers[def.Id] == true then
 				data.Powers[def.Id] = true
+			end
+		end
+	end
+
+	data.Pets = sanitizePets(raw.Pets)
+	data.NextPetId = math.floor(num(raw.NextPetId, 1, 1))
+	for _, pet in data.Pets do
+		local n = tonumber(string.match(pet.Id, "^P(%d+)$"))
+		if n and n >= data.NextPetId then
+			data.NextPetId = n + 1
+		end
+	end
+	data.PetSlotsBought = math.floor(num(raw.PetSlotsBought, 0, 0, #Config.Pets.CashSlotCosts))
+	data.PetSlotsRobux = math.floor(num(raw.PetSlotsRobux, 0, 0, Config.Pets.RobuxSlots))
+	data.TradeTickets = math.floor(num(raw.TradeTickets, 0, 0, Config.Trading.MaxTickets))
+	data.EggsOpened = math.floor(num(raw.EggsOpened, 0, 0))
+	-- nie mehr ausgerüstet als Slots vorhanden
+	local slots = Formulas.petSlots(data)
+	local equipped = 0
+	for _, pet in data.Pets do
+		if pet.Equipped then
+			equipped += 1
+			if equipped > slots then
+				pet.Equipped = false
 			end
 		end
 	end

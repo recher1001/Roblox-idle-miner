@@ -33,6 +33,10 @@ es werden **keine externen Assets** benötigt.
 | **Manager** | Einstellen für Geld, 5 Seltenheiten (Gewöhnlich → Mythisch) mit Reveal-Animation, automatisieren die Station, passiver Tempo-Bonus + aktive Fähigkeit (Turbo, Goldader, Schwerlast, Sparfuchs), „Alle boosten“ |
 | **Freunde-Avatare** | Manager und Kumpel tragen die echten Roblox-Avatare deiner **Freunde** mit Bauarbeiterhelm (Manager-Helm in Seltenheitsfarbe) |
 | **Stehlen** | Halte **E** am Aufzugslager eines anderen Spielers, um einen Teil zu klauen. Schutz: Cooldowns, Neulingsschutz, Schild, Bewachen, **Basis abschließen** |
+| **Pets & Eier** | 6 Eier (3 für Geld, 3 für Gems) mit 38 Pets von Gewöhnlich bis **Geheim**. Jede Chance steht im Menü (z. B. 1 %, 0,5 %, 0,012 %). 1x oder 3x öffnen mit Schlüpf-Animation, seltene Pets werden dem ganzen Server verkündet. Ausgerüstete Pets boosten das Einkommen (Boni addieren sich) und fliegen hinter dir her |
+| **Pet-Slots** | 3 Slots gratis, mit Spielgeld bis 5, mit Robux bis 10. „⭐ Beste ausrüsten“ wählt automatisch die stärksten Pets |
+| **Handeln** | Pets gegen Pets tauschen (nie Geld): Anfrage → beide legen Pets rein → beide „Bereit“ → 3-s-Countdown. Kostet beide 1 🎟️ Trading-Ticket (günstig im Shop) |
+| **AFK-Zone** | Lila Plattform hinter dem Brunnen: pro Minute **+1 💎** und das Offline-Einkommen deiner Minen |
 | **Rebirth** | Fortschritt zurücksetzen → Prestige-Punkte → dauerhafter Einkommens-Multiplikator + Gems |
 | **Offline-Einnahmen** | Beim Beitreten: Popup mit dem Verdienst seit dem letzten Besuch (max. 8 h, mit Gamepass 24 h), x2 für Gems |
 | **Shop** | Gem-Boosts (2x Geld, 2x Tempo, Schild, Geldkoffer), Robux-Produkte & Gamepasses (IDs in der Config) |
@@ -143,8 +147,21 @@ Regeln (vom Server erzwungen):
   Teppich: Laufen = Richtung, Leertaste/E bzw. ▲ = hoch, Q/Strg bzw. ▼ = runter.
 - Admins bekommen den **🪄 Admin-Stab** ins Inventar: auf einen Spieler klicken → Admin-Menü für ihn.
 
+Reiter **🐾 Pets**: jedem Spieler (oder dir) jedes Pet geben (+1) oder wegnehmen (−1),
+Trading-Tickets geben und alle Pet-Slots freischalten. Dafür gibt es das neue Recht
+„Pets & Tickets geben“.
+
 Chat-Befehle für Admins (wenn der Chat sie durchlässt): `/cash 1e9`, `/gems 100`, `/unlockall`,
-`/managers`, `/cooldowns`, `/event`.
+`/managers`, `/cooldowns`, `/event`, `/petgive Hamster`, `/tickets 10`, `/petslots`.
+
+### Pets, Eier & AFK-Zone testen
+
+- **Eier:** Menü **🐾 Pets** (links unten im Raster) oder am Stand **„EIER“** bei Eier-Emma (E drücken).
+  Gem-Eier testen: im Admin-Menü Gems geben.
+- **Handeln:** Mit 2 Spielern testen (siehe unten). Beide brauchen ein 🎟️ Ticket (Shop oder Admin-Menü).
+  Im Pets-Menü → Reiter **🤝 Handeln** → Spieler einladen → der andere nimmt oben an.
+- **AFK-Zone:** In die lila Plattform hinter dem Brunnen stellen – unten erscheint eine Leiste,
+  jede Minute gibt es 1 💎 + Minen-Geld (Geld nur, wenn Manager eingestellt sind).
 
 ### Mehrspieler testen (Stehlen, Abschließen)
 
@@ -203,14 +220,18 @@ src/
 │     ├─ StealService       Stehlen, Bewachen, Basis abschließen
 │     ├─ RewardService      Tägliche Belohnung, Spielzeit-Gems
 │     ├─ EventService       Server-Events
+│     ├─ PetService         Eier öffnen, Pets ausrüsten/freilassen, Slots, Tickets
+│     ├─ TradeService       Pet-Handel zwischen Spielern
+│     ├─ AfkService         AFK-Zone (Gems + Minen-Geld pro Minute)
 │     └─ AdminService       Owner/Admins, Rechte, OP-Kräfte, fliegender Teppich
 └─ client/                  → StarterPlayerScripts.Client
    ├─ Main.client.luau      Baut UI + startet Controller
    ├─ ClientState / Remote / PlotLocator
    ├─ UI/                   Theme, Util, Components, Root, HUD, PanelManager,
-   │  │                     Popups, Toasts, FloatingText
-   │  └─ Panels/            Upgrades, Managers, Rebirth, Shop, Daily, Admin
-   └─ Controllers/          Effects, MineVisuals, StationBadges, CameraController, CarpetController, Sounds
+   │  │                     Popups, Toasts, FloatingText, PetVisuals
+   │  └─ Panels/            Upgrades, Managers, Rebirth, Shop, Daily, Pets, Trade, Admin
+   └─ Controllers/          Effects, MineVisuals, StationBadges, CameraController, CarpetController,
+                            SprintController, NpcController, PetFollowController, AfkController, Sounds
 ```
 
 ---
@@ -223,6 +244,9 @@ Alle Zahlen stehen in `src/shared/Config.luau` – du musst keinen anderen Code 
 - `Config.ShaftCount` / `Config.ShaftGen` – Anzahl Ebenen (500), Erz-Liste und Wachstum für die automatisch erzeugten Ebenen
 - `Config.Tracks` – Upgrade-Tracks pro Station: Basiskosten, Wachstum, Wirkung pro Level, Meilensteine
 - `Config.Managers` – Einstellkosten, Seltenheiten (Chance, Boni, Dauer, Abklingzeit), Fähigkeiten
+- `Config.Pets` / `Config.Eggs` – Pets (Icon, Seltenheit, Multiplikator), Eier (Preis, Währung, Chancen in % – müssen 100 ergeben), Slots
+- `Config.Trading` – Ticketpreis, max. Pets pro Seite, Countdown
+- `Config.Afk` – Intervall, Gems und Einkommen pro Intervall, Größe der Zone
 - `Config.Rebirth` – Mindestverdienst, Punkte-Formel, Multiplikator pro Punkt
 - `Config.Offline` – Obergrenze, Effizienz, x2-Preis
 - `Config.Steal` – Beute, Cooldowns, Schutzzeiten, Abschließen
@@ -247,7 +271,8 @@ Die Models werden mit `PivotTo` platziert (Pivot = Unterseite, Blickrichtung −
 
 **Robux:** Im Creator Dashboard Developer Products / Gamepasses anlegen und die IDs in
 `Config.Shop.Products[*].ProductId` bzw. `Config.Shop.Passes[*].GamePassId` eintragen.
-Solange die ID `0` ist, zeigt der Shop „Bald verfügbar“.
+Solange die ID `0` ist, zeigt der Shop „Bald verfügbar“. Für Robux-Pet-Slots ein Developer
+Product anlegen und die ID beim Produkt `PetSlot` eintragen (jeder Kauf = +1 Slot, bis 10).
 
 ---
 

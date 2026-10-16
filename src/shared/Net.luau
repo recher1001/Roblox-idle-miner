@@ -14,6 +14,9 @@
 	  OfflineEarnings  : Popup-Daten nach dem Beitreten
 	  ManagerReveal    : Ergebnis einer Manager-Einstellung (Reveal-Animation)
 	  ServerEvent      : globales Event (Goldrausch) gestartet / beendet
+	  EggHatch         : Ergebnis beim Ei-Öffnen (Schlüpf-Animation)
+	  Trade            : Zustand des laufenden Pet-Handels (nil = beendet)
+	  TradeInvite      : Handelsanfrage eines anderen Spielers
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -30,6 +33,9 @@ Net.Events = {
 	"OfflineEarnings",
 	"ManagerReveal",
 	"ServerEvent",
+	"EggHatch",
+	"Trade",
+	"TradeInvite",
 }
 
 Net.Functions = {

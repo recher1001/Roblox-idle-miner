@@ -29,6 +29,12 @@ export type ManagerData = {
 	CooldownUntil: number,
 }
 
+export type PetData = {
+	Id: string, -- eindeutige Nummer im Inventar ("P12")
+	Pet: string, -- PetDef.Id aus Config.Pets.List
+	Equipped: boolean,
+}
+
 export type PlayerData = {
 	Version: number,
 	Cash: BigNum,
@@ -52,6 +58,12 @@ export type PlayerData = {
 	LockCooldownUntil: number,
 	ReceiptIds: { string },
 	Powers: { [string]: boolean }, -- Admin-Kräfte (Teppich, Speed ...)
+	Pets: { PetData },
+	NextPetId: number,
+	PetSlotsBought: number, -- mit Spielgeld gekaufte Ausrüst-Slots
+	PetSlotsRobux: number, -- mit Robux gekaufte Ausrüst-Slots
+	TradeTickets: number,
+	EggsOpened: number,
 	Stats: {
 		StealsDone: number,
 		TimesRobbed: number,
@@ -72,6 +84,18 @@ export type AdminInfo = {
 	IsOwner: boolean,
 	Permissions: { [string]: boolean },
 	Admins: { AdminEntry }?, -- nur für den Owner
+}
+
+-- Laufender Pet-Handel aus Sicht eines Spielers
+export type TradeView = {
+	Id: number,
+	PartnerUserId: number,
+	PartnerName: string,
+	MyOffer: { PetData },
+	TheirOffer: { PetData },
+	MyReady: boolean,
+	TheirReady: boolean,
+	ConfirmAt: number?, -- Server-Zeit, zu der der Handel ausgeführt wird
 }
 
 -- Was der Client vom Server bekommt

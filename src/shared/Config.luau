@@ -518,6 +518,17 @@ Config.Sprint = {
 ----------------------------------------------------------------------
 -- Gems & Belohnungen
 ----------------------------------------------------------------------
+----------------------------------------------------------------------
+-- AFK-Zone (Platte hinter dem Brunnen): wer drinsteht, bekommt pro
+-- Intervall Gems + das Offline-Einkommen seiner Minen für diese Zeit
+----------------------------------------------------------------------
+Config.Afk = {
+	Interval = 60, -- Sekunden
+	Gems = 1, -- pro Intervall
+	IncomeSeconds = 60, -- Offline-Einkommen für so viele Sekunden pro Intervall
+	Radius = 14, -- Größe der Zone (Studs)
+}
+
 Config.Gems = {
 	PlaytimeInterval = 600, -- alle X Sekunden online...
 	PlaytimeAmount = 2, -- ...gibt es so viele Gems
@@ -590,6 +601,7 @@ export type ProductDef = {
 	ProductId: number,
 	Gems: number?,
 	IncomeSeconds: number?,
+	PetSlots: number?, -- zusätzliche Pet-Slots (bis Config.Pets.RobuxSlots)
 }
 
 export type PassDef = {
@@ -602,6 +614,7 @@ export type PassDef = {
 
 Config.Shop = {
 	MaxBoostSeconds = 24 * 3600,
+	SlotRefundGems = 100, -- falls ein Robux-Slot über dem Limit gekauft wurde
 	GemItems = {
 		{
 			Id = "Cash2x",
@@ -665,6 +678,14 @@ Config.Shop = {
 			Gems = 1200,
 		},
 		{
+			Id = "PetSlot",
+			Name = "+1 Pet-Slot",
+			Description = "Ein Pet mehr ausrüsten (bis 10 Slots)",
+			Icon = "🐾",
+			ProductId = 0,
+			PetSlots = 1,
+		},
+		{
 			Id = "CashBag",
 			Name = "Geldsack",
 			Description = "Sofort 2 Stunden Einkommen",
@@ -699,6 +720,208 @@ Config.Shop = {
 }
 
 ----------------------------------------------------------------------
+-- Pets & Eier
+--   Pets erhöhen das Einkommen. Boni der ausgerüsteten Pets werden
+--   ADDIERT: zwei x2-Pets = 1 + 1 + 1 = x3 (verhindert Explosionen).
+--   Eier kosten Geld (Preis wächst mit deiner tiefsten Ebene) oder Gems.
+--   Chancen stehen in Prozent und ergeben je Ei genau 100.
+--   Pets bleiben beim Rebirth erhalten.
+----------------------------------------------------------------------
+export type PetRarityDef = { Id: string, Name: string, Color: Color3 }
+export type PetDef = { Id: string, Name: string, Icon: string, Rarity: string, Multiplier: number }
+export type EggChance = { Pet: string, Chance: number }
+export type EggDef = {
+	Id: string,
+	Name: string,
+	Icon: string,
+	Color: Color3,
+	Currency: string, -- "Cash" | "Gems"
+	BaseCost: number, -- Cash: Mindestpreis, Gems: fester Preis
+	DepthFactor: number?, -- Cash: Preis = max(BaseCost, Freischaltpreis der tiefsten Ebene * Faktor)
+	Chances: { EggChance },
+}
+
+Config.Pets = {
+	BaseSlots = 3, -- so viele Pets gleichzeitig ausrüsten
+	CashSlotCosts = { 50e3, 5e6 }, -- Spielgeld für Slot 4 und 5 (also bis 5 Slots)
+	RobuxSlots = 5, -- per Robux zusätzlich kaufbar (Developer Product "PetSlot")
+	MaxSlots = 10, -- absolutes Limit (3 + 2 Geld + 5 Robux)
+	MaxOwned = 100, -- Inventar-Platz
+	MultiOpen = { 1, 3 }, -- Eier gleichzeitig öffnen
+	AnnounceBelow = 1.01, -- Chance (%) ab der der ganze Server es erfährt
+	Rarities = {
+		{ Id = "Common", Name = "Gewöhnlich", Color = Color3.fromRGB(180, 190, 205) },
+		{ Id = "Uncommon", Name = "Ungewöhnlich", Color = Color3.fromRGB(60, 230, 90) },
+		{ Id = "Rare", Name = "Selten", Color = Color3.fromRGB(40, 160, 255) },
+		{ Id = "Epic", Name = "Episch", Color = Color3.fromRGB(190, 70, 255) },
+		{ Id = "Legendary", Name = "Legendär", Color = Color3.fromRGB(255, 190, 0) },
+		{ Id = "Mythic", Name = "Mythisch", Color = Color3.fromRGB(255, 50, 130) },
+		{ Id = "Secret", Name = "Geheim", Color = Color3.fromRGB(0, 255, 230) },
+	} :: { PetRarityDef },
+	List = {
+		-- Erd-Ei
+		{ Id = "Hamster", Name = "Hamster", Icon = "🐹", Rarity = "Common", Multiplier = 1.1 },
+		{ Id = "Bunny", Name = "Hase", Icon = "🐰", Rarity = "Uncommon", Multiplier = 1.2 },
+		{ Id = "Fox", Name = "Fuchs", Icon = "🦊", Rarity = "Rare", Multiplier = 1.35 },
+		{ Id = "Owl", Name = "Eule", Icon = "🦉", Rarity = "Epic", Multiplier = 1.6 },
+		{ Id = "GoldHedgehog", Name = "Gold-Igel", Icon = "🦔", Rarity = "Legendary", Multiplier = 2.5 },
+		-- Kristall-Ei
+		{ Id = "Penguin", Name = "Pinguin", Icon = "🐧", Rarity = "Common", Multiplier = 1.3 },
+		{ Id = "Frog", Name = "Frosch", Icon = "🐸", Rarity = "Uncommon", Multiplier = 1.5 },
+		{ Id = "Koala", Name = "Koala", Icon = "🐨", Rarity = "Rare", Multiplier = 1.8 },
+		{ Id = "Unicorn", Name = "Einhorn", Icon = "🦄", Rarity = "Epic", Multiplier = 2.5 },
+		{ Id = "CrystalDragon", Name = "Kristall-Drache", Icon = "🐉", Rarity = "Legendary", Multiplier = 4 },
+		-- Magma-Ei
+		{ Id = "Salamander", Name = "Salamander", Icon = "🦎", Rarity = "Common", Multiplier = 1.6 },
+		{ Id = "Scorpion", Name = "Skorpion", Icon = "🦂", Rarity = "Uncommon", Multiplier = 2 },
+		{ Id = "LavaCrab", Name = "Lava-Krabbe", Icon = "🦀", Rarity = "Rare", Multiplier = 2.5 },
+		{ Id = "TRex", Name = "T-Rex", Icon = "🦖", Rarity = "Epic", Multiplier = 3.5 },
+		{ Id = "LavaDragon", Name = "Lava-Drache", Icon = "🐲", Rarity = "Legendary", Multiplier = 6 },
+		{ Id = "MagmaGolem", Name = "Magma-Golem", Icon = "🗿", Rarity = "Mythic", Multiplier = 10 },
+		-- Gold-Ei
+		{ Id = "Goldfish", Name = "Goldfisch", Icon = "🐠", Rarity = "Common", Multiplier = 2 },
+		{ Id = "Lion", Name = "Löwe", Icon = "🦁", Rarity = "Uncommon", Multiplier = 2.5 },
+		{ Id = "Tiger", Name = "Tiger", Icon = "🐯", Rarity = "Rare", Multiplier = 3 },
+		{ Id = "Peacock", Name = "Pfau", Icon = "🦚", Rarity = "Epic", Multiplier = 4.5 },
+		{ Id = "GoldMonkey", Name = "Gold-Affe", Icon = "🐵", Rarity = "Legendary", Multiplier = 7 },
+		{ Id = "GoldGriffin", Name = "Gold-Greif", Icon = "🦅", Rarity = "Mythic", Multiplier = 12 },
+		-- Galaxie-Ei
+		{ Id = "Alien", Name = "Alien", Icon = "👽", Rarity = "Common", Multiplier = 3 },
+		{ Id = "SpaceOctopus", Name = "Weltraum-Krake", Icon = "🐙", Rarity = "Uncommon", Multiplier = 4 },
+		{ Id = "StarWhale", Name = "Sternen-Wal", Icon = "🐳", Rarity = "Rare", Multiplier = 5.5 },
+		{ Id = "Robot", Name = "Robo-Kumpel", Icon = "🤖", Rarity = "Epic", Multiplier = 8 },
+		{ Id = "StarShark", Name = "Sternen-Hai", Icon = "🦈", Rarity = "Legendary", Multiplier = 15 },
+		{ Id = "BlackHole", Name = "Schwarzes Loch", Icon = "🌌", Rarity = "Mythic", Multiplier = 30 },
+		{ Id = "PrimeCrystal", Name = "Ur-Kristall", Icon = "💠", Rarity = "Secret", Multiplier = 100 },
+		-- Regenbogen-Ei
+		{ Id = "RainbowCat", Name = "Regenbogen-Katze", Icon = "🐱", Rarity = "Common", Multiplier = 5 },
+		{ Id = "Butterfly", Name = "Schmetterling", Icon = "🦋", Rarity = "Uncommon", Multiplier = 7 },
+		{ Id = "Flamingo", Name = "Flamingo", Icon = "🦩", Rarity = "Rare", Multiplier = 10 },
+		{ Id = "NeonParrot", Name = "Neon-Papagei", Icon = "🦜", Rarity = "Epic", Multiplier = 15 },
+		{ Id = "MagicBat", Name = "Zauber-Fledermaus", Icon = "🦇", Rarity = "Legendary", Multiplier = 25 },
+		{ Id = "RainbowGhost", Name = "Regenbogen-Geist", Icon = "👻", Rarity = "Mythic", Multiplier = 50 },
+		{ Id = "CosmoKraken", Name = "Kosmo-Krake", Icon = "🦑", Rarity = "Secret", Multiplier = 150 },
+		{ Id = "DivineChicken", Name = "Göttliches Huhn", Icon = "🐔", Rarity = "Secret", Multiplier = 777 },
+	} :: { PetDef },
+}
+
+Config.Eggs = {
+	{
+		Id = "Dirt",
+		Name = "Erd-Ei",
+		Icon = "🥚",
+		Color = Color3.fromRGB(196, 140, 80),
+		Currency = "Cash",
+		BaseCost = 400,
+		DepthFactor = 0.5,
+		Chances = {
+			{ Pet = "Hamster", Chance = 60 },
+			{ Pet = "Bunny", Chance = 28 },
+			{ Pet = "Fox", Chance = 9 },
+			{ Pet = "Owl", Chance = 2 },
+			{ Pet = "GoldHedgehog", Chance = 1 },
+		},
+	},
+	{
+		Id = "Crystal",
+		Name = "Kristall-Ei",
+		Icon = "🥚",
+		Color = Color3.fromRGB(80, 220, 255),
+		Currency = "Cash",
+		BaseCost = 25e3,
+		DepthFactor = 3,
+		Chances = {
+			{ Pet = "Penguin", Chance = 55 },
+			{ Pet = "Frog", Chance = 30 },
+			{ Pet = "Koala", Chance = 11 },
+			{ Pet = "Unicorn", Chance = 3 },
+			{ Pet = "CrystalDragon", Chance = 1 },
+		},
+	},
+	{
+		Id = "Magma",
+		Name = "Magma-Ei",
+		Icon = "🥚",
+		Color = Color3.fromRGB(255, 90, 30),
+		Currency = "Cash",
+		BaseCost = 2e6,
+		DepthFactor = 20,
+		Chances = {
+			{ Pet = "Salamander", Chance = 55 },
+			{ Pet = "Scorpion", Chance = 30 },
+			{ Pet = "LavaCrab", Chance = 10.5 },
+			{ Pet = "TRex", Chance = 3 },
+			{ Pet = "LavaDragon", Chance = 1 },
+			{ Pet = "MagmaGolem", Chance = 0.5 },
+		},
+	},
+	{
+		Id = "Gold",
+		Name = "Gold-Ei",
+		Icon = "🥚",
+		Color = Color3.fromRGB(255, 205, 0),
+		Currency = "Gems",
+		BaseCost = 50,
+		Chances = {
+			{ Pet = "Goldfish", Chance = 50 },
+			{ Pet = "Lion", Chance = 32 },
+			{ Pet = "Tiger", Chance = 13.5 },
+			{ Pet = "Peacock", Chance = 3 },
+			{ Pet = "GoldMonkey", Chance = 1 },
+			{ Pet = "GoldGriffin", Chance = 0.5 },
+		},
+	},
+	{
+		Id = "Galaxy",
+		Name = "Galaxie-Ei",
+		Icon = "🥚",
+		Color = Color3.fromRGB(110, 60, 255),
+		Currency = "Gems",
+		BaseCost = 150,
+		Chances = {
+			{ Pet = "Alien", Chance = 50 },
+			{ Pet = "SpaceOctopus", Chance = 32 },
+			{ Pet = "StarWhale", Chance = 13.488 },
+			{ Pet = "Robot", Chance = 3 },
+			{ Pet = "StarShark", Chance = 1 },
+			{ Pet = "BlackHole", Chance = 0.5 },
+			{ Pet = "PrimeCrystal", Chance = 0.012 },
+		},
+	},
+	{
+		Id = "Rainbow",
+		Name = "Regenbogen-Ei",
+		Icon = "🥚",
+		Color = Color3.fromRGB(255, 60, 200),
+		Currency = "Gems",
+		BaseCost = 400,
+		Chances = {
+			{ Pet = "RainbowCat", Chance = 50 },
+			{ Pet = "Butterfly", Chance = 32 },
+			{ Pet = "Flamingo", Chance = 13.4 },
+			{ Pet = "NeonParrot", Chance = 3 },
+			{ Pet = "MagicBat", Chance = 1 },
+			{ Pet = "RainbowGhost", Chance = 0.5 },
+			{ Pet = "CosmoKraken", Chance = 0.088 },
+			{ Pet = "DivineChicken", Chance = 0.012 },
+		},
+	},
+} :: { EggDef }
+
+----------------------------------------------------------------------
+-- Pet-Handel zwischen Spielern (nur Pets, nie Geld)
+--   Jeder Handel kostet beide Spieler 1 Trading-Ticket. Tickets gibt's
+--   günstig für Geld im Shop.
+----------------------------------------------------------------------
+Config.Trading = {
+	TicketCost = 250, -- Geld pro Ticket (bewusst günstig)
+	MaxTickets = 99,
+	MaxPetsPerSide = 8,
+	InviteTimeout = 30, -- Sekunden, bis eine Anfrage verfällt
+	ConfirmCountdown = 3, -- Sekunden nach "Bereit" beider Seiten (Schutz vor Tricks)
+}
+
+----------------------------------------------------------------------
 -- Admin-System
 --   Der Owner (du) hat IMMER alle Rechte, kann nicht entfernt und von
 --   Admins nicht negativ beeinflusst werden (nichts wegnehmen, kein Kick).
@@ -720,6 +943,7 @@ Config.Admin = {
 		{ Id = "Gems", Name = "Gems geben/nehmen", Icon = "💎", Default = true },
 		{ Id = "Progress", Name = "Ebenen, Manager, Cooldowns", Icon = "🔓", Default = true },
 		{ Id = "Powers", Name = "Kräfte geben/nehmen", Icon = "⚡", Default = true },
+		{ Id = "Pets", Name = "Pets & Tickets geben", Icon = "🐾", Default = true },
 		{ Id = "Events", Name = "Events starten", Icon = "🔥", Default = false },
 		{ Id = "Kick", Name = "Spieler kicken", Icon = "👢", Default = false },
 		{ Id = "Reset", Name = "Spielstand zurücksetzen", Icon = "♻", Default = false },
@@ -783,6 +1007,10 @@ Config.RateLimits = {
 	AdminAction = { Rate = 8, Burst = 16 },
 	AdminInfo = { Rate = 4, Burst = 8 },
 	ToggleCarpet = { Rate = 2, Burst = 4 },
+	OpenEgg = { Rate = 3, Burst = 5 },
+	EquipPet = { Rate = 10, Burst = 20 },
+	TradeOffer = { Rate = 8, Burst = 16 },
+	TradeRequest = { Rate = 1, Burst = 3 },
 } :: { [string]: { Rate: number, Burst: number } }
 
 ----------------------------------------------------------------------

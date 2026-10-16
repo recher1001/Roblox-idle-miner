@@ -5,6 +5,8 @@
 	  confirm()        - Ja/Nein-Dialog
 	  offline()        - "Willkommen zurück" mit Offline-Einnahmen (x2 für Gems)
 	  managerReveal()  - Reveal-Animation beim Einstellen (wie Ei-Öffnen)
+	  eggHatch()       - Ei-Schlüpf-Animation (1 oder 3 Eier gleichzeitig)
+	  tradeInvite()    - Handelsanfrage mit Annehmen/Ablehnen
 	  banner()         - großer Text in der Bildschirmmitte (Events, Freischaltungen)
 ]]
 
@@ -13,6 +15,7 @@ local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNum = require(Shared.BigNum)
+local Clock = require(Shared.Clock)
 local Config = require(Shared.Config)
 local Formulas = require(Shared.Formulas)
 local Types = require(Shared.Types)
@@ -20,6 +23,7 @@ local Types = require(Shared.Types)
 local Remote = require(script.Parent.Parent.Remote)
 local Sounds = require(script.Parent.Parent.Controllers.Sounds)
 local Components = require(script.Parent.Components)
+local PetVisuals = require(script.Parent.PetVisuals)
 local Root = require(script.Parent.Root)
 local Theme = require(script.Parent.Theme)
 local Util = require(script.Parent.Util)
@@ -431,6 +435,367 @@ function Popups.managerReveal(m: Types.ManagerData)
 			end
 		end
 		revealing = false
+	end)
+end
+
+----------------------------------------------------------------------
+-- Ei-Schlüpfen (wie bei den großen Pet-Spielen)
+----------------------------------------------------------------------
+export type HatchResult = { Id: string, Pet: string, Chance: number, Equipped: boolean }
+type HatchInfo = { EggId: string, Pets: { HatchResult } }
+
+local hatchQueue: { HatchInfo } = {}
+local hatching = false
+
+local function playHatch(info: HatchInfo)
+	local egg = Formulas.eggDef(info.EggId)
+	local eggColor = if egg then egg.Color else Theme.Colors.Gold
+	local count = #info.Pets
+	if count == 0 then
+		return
+	end
+	-- seltenstes Ergebnis bestimmt die Spannung
+	local rarest = 100
+	for _, r in info.Pets do
+		rarest = math.min(rarest, r.Chance)
+	end
+
+	local dim: Frame = Util.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Theme.Colors.Overlay,
+		BackgroundTransparency = 1,
+		Active = true,
+		Parent = Root.layer("Popup"),
+	})
+	Util.tween(dim, 0.25, { BackgroundTransparency = 0.35 })
+
+	local spacing = 300
+	local slots: { { Holder: Frame, Scale: UIScale, Egg: Frame } } = {}
+	for i = 1, count do
+		local x = (i - (count + 1) / 2) * spacing
+		local scale: UIScale = Util.new("UIScale", { Scale = 0.2 })
+		local holder: Frame = Util.new("Frame", {
+			Size = UDim2.fromOffset(280, 400),
+			Position = UDim2.new(0.5, x, 0.5, 0),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundTransparency = 1,
+			Parent = dim,
+		}, { scale })
+		local eggFrame = PetVisuals.egg({
+			Position = UDim2.fromScale(0.5, 0.45),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Parent = holder,
+		}, eggColor, 190)
+		Util.tween(scale, 0.45, { Scale = 1 }, Enum.EasingStyle.Back)
+		table.insert(slots, { Holder = holder, Scale = scale, Egg = eggFrame })
+	end
+	Sounds.play("Click", 0.8)
+	task.wait(0.45)
+
+	-- Wackeln, immer stärker (länger bei seltenen Pets)
+	local shakeTime = 1.4 + (if rarest <= 1 then 0.9 elseif rarest <= 5 then 0.4 else 0)
+	local start = os.clock()
+	local nextTick = 0
+	while os.clock() - start < shakeTime do
+		local t = (os.clock() - start) / shakeTime
+		for i, s in slots do
+			s.Egg.Rotation = math.sin(os.clock() * (10 + t * 30) + i) * (6 + t * 22)
+		end
+		if os.clock() - start > nextTick then
+			nextTick += 0.35 - t * 0.2
+			Sounds.play("Click", 1 + t * 0.6)
+		end
+		RunService.RenderStepped:Wait()
+	end
+
+	-- Weißer Blitz
+	local flash: Frame = Util.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0,
+		ZIndex = 40,
+		Parent = dim,
+	})
+	Util.tween(flash, 0.5, { BackgroundTransparency = 1 })
+	task.delay(0.55, function()
+		flash:Destroy()
+	end)
+
+	local bestIndex = 1
+	for i, result in info.Pets do
+		local s = slots[i]
+		s.Egg:Destroy()
+		local def = Formulas.petDef(result.Pet)
+		local rarity = Formulas.petRarity(if def then def.Rarity else "Common")
+		local rarityIndex = Formulas.petRarityIndex(rarity.Id)
+		if rarityIndex >= 4 then
+			-- drehende Strahlen hinter seltenen Pets
+			local rays: Frame = Util.new("Frame", {
+				Size = UDim2.fromOffset(420, 420),
+				Position = UDim2.fromScale(0.5, 0.36),
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundTransparency = 1,
+				Parent = s.Holder,
+			})
+			for n = 0, 5 do
+				Util.new("Frame", {
+					Size = UDim2.fromOffset(40, 420),
+					Position = UDim2.fromScale(0.5, 0.5),
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					Rotation = n * 30,
+					BackgroundColor3 = rarity.Color,
+					BackgroundTransparency = 0.45,
+					BorderSizePixel = 0,
+					Parent = rays,
+				}, {
+					Util.new("UIGradient", {
+						Transparency = NumberSequence.new({
+							NumberSequenceKeypoint.new(0, 1),
+							NumberSequenceKeypoint.new(0.5, 0),
+							NumberSequenceKeypoint.new(1, 1),
+						}),
+						Rotation = 90,
+					}),
+				})
+			end
+			task.spawn(function()
+				while rays.Parent do
+					rays.Rotation += 0.6
+					RunService.RenderStepped:Wait()
+				end
+			end)
+		end
+		local glow: Frame = Util.new("Frame", {
+			Size = UDim2.fromOffset(190, 190),
+			Position = UDim2.fromScale(0.5, 0.36),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundColor3 = rarity.Color,
+			BackgroundTransparency = 0.25,
+			Parent = s.Holder,
+		}, {
+			Util.round(),
+			Util.new("UIGradient", {
+				Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 0.1),
+					NumberSequenceKeypoint.new(1, 0.9),
+				}),
+				Rotation = 90,
+			}),
+			Util.stroke(Theme.lighten(rarity.Color, 0.5), 4),
+		})
+		Util.label({
+			Size = UDim2.fromScale(1, 1),
+			Text = if def then def.Icon else "❓",
+			TextSize = 110,
+			Parent = glow,
+		})
+		local rarityLabel = Util.label({
+			Size = UDim2.new(1, 0, 0, 36),
+			Position = UDim2.new(0, 0, 0.36, 104),
+			Text = string.upper(rarity.Name),
+			Font = Theme.Fonts.Title,
+			TextSize = 30,
+			TextColor3 = rarity.Color,
+			Parent = s.Holder,
+		})
+		Util.textStroke(3).Parent = rarityLabel
+		local nameLabel = Util.label({
+			Size = UDim2.new(1, 0, 0, 34),
+			Position = UDim2.new(0, 0, 0.36, 140),
+			Text = if def then def.Name else result.Pet,
+			Font = Theme.Fonts.Title,
+			TextSize = 28,
+			Parent = s.Holder,
+		})
+		Util.textStroke(2.5).Parent = nameLabel
+		local infoLabel = Util.label({
+			Size = UDim2.new(1, 0, 0, 52),
+			Position = UDim2.new(0, 0, 0.36, 176),
+			Text = string.format(
+				"💰 %s Einkommen\n🍀 %s%s",
+				if def then Formulas.formatPetMultiplier(def.Multiplier) else "x1",
+				Formulas.formatChance(result.Chance),
+				if result.Equipped then "   ✓ Ausgerüstet" else ""
+			),
+			TextSize = 19,
+			Parent = s.Holder,
+		})
+		Util.textStroke(2).Parent = infoLabel
+		s.Scale.Scale = 1.35
+		Util.tween(s.Scale, 0.55, { Scale = 1 }, Enum.EasingStyle.Elastic)
+		if result.Chance < info.Pets[bestIndex].Chance then
+			bestIndex = i
+		end
+	end
+
+	local best = info.Pets[bestIndex]
+	local bestDef = Formulas.petDef(best.Pet)
+	local bestRarity = Formulas.petRarity(if bestDef then bestDef.Rarity else "Common")
+	local bestIndexRarity = Formulas.petRarityIndex(bestRarity.Id)
+	Sounds.play("Reveal", 0.9 + bestIndexRarity * 0.08)
+	if bestIndexRarity >= 5 then
+		Sounds.play("Rebirth", 1.2)
+		Popups.banner(
+			string.format("%s %s!", if bestIndexRarity >= 6 then "🌟" else "✨", string.upper(bestRarity.Name)),
+			bestRarity.Color,
+			string.format("Nur %s Chance!", Formulas.formatChance(best.Chance))
+		)
+	end
+
+	task.wait(0.7)
+	Util.label({
+		Size = UDim2.fromOffset(400, 30),
+		Position = UDim2.new(0.5, 0, 1, -60),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Text = "Tippen zum Fortfahren",
+		TextSize = 18,
+		TextColor3 = Theme.Colors.SubText,
+		Parent = dim,
+	})
+	local done = false
+	local button: TextButton = Util.new("TextButton", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = "",
+		ZIndex = 50,
+		Parent = dim,
+	})
+	button.Activated:Connect(function()
+		done = true
+	end)
+	local waited = 0
+	while not done and waited < 5 do
+		waited += task.wait(0.1)
+	end
+	for _, s in slots do
+		Util.tween(s.Scale, 0.2, { Scale = 0.3 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	end
+	Util.tween(dim, 0.2, { BackgroundTransparency = 1 })
+	task.wait(0.22)
+	dim:Destroy()
+end
+
+function Popups.eggHatch(info: HatchInfo)
+	table.insert(hatchQueue, info)
+	if hatching then
+		return
+	end
+	hatching = true
+	task.spawn(function()
+		while #hatchQueue > 0 do
+			local nextInfo = table.remove(hatchQueue, 1)
+			if nextInfo then
+				local ok, err = pcall(function()
+					playHatch(nextInfo)
+				end)
+				if not ok then
+					warn("[Popups] Schlüpf-Fehler:", err)
+				end
+			end
+		end
+		hatching = false
+	end)
+end
+
+function Popups.isHatching(): boolean
+	return hatching
+end
+
+----------------------------------------------------------------------
+-- Handelsanfrage (oben in der Mitte, mit Annehmen/Ablehnen)
+----------------------------------------------------------------------
+function Popups.tradeInvite(fromUserId: number, fromName: string, expiresAt: number)
+	local scale: UIScale = Util.new("UIScale", { Scale = 0.4 })
+	local card: Frame = Util.new("Frame", {
+		Size = UDim2.fromOffset(520, 150),
+		Position = UDim2.new(0.5, 0, 0, 96),
+		AnchorPoint = Vector2.new(0.5, 0),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Parent = Root.layer("Popup"),
+	}, {
+		Util.corner(Theme.Radius.Large),
+		Util.gradient(Theme.Colors.PanelTop, Theme.Colors.Panel),
+		Util.stroke(Theme.Colors.Cyan, 3),
+		scale,
+	})
+	Util.new("ImageLabel", {
+		Size = UDim2.fromOffset(84, 84),
+		Position = UDim2.fromOffset(16, 14),
+		BackgroundColor3 = Theme.Colors.Card,
+		Image = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", fromUserId),
+		Parent = card,
+	}, { Util.round(), Util.stroke(Color3.new(1, 1, 1), 2) })
+	local text = Util.label({
+		Size = UDim2.new(1, -130, 0, 60),
+		Position = UDim2.fromOffset(114, 10),
+		Text = "🤝 " .. fromName .. "\nmöchte mit dir Pets handeln!",
+		Font = Theme.Fonts.Title,
+		TextSize = 21,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = card,
+	})
+	Util.textStroke(1.5).Parent = text
+	local timer = Util.label({
+		Size = UDim2.fromOffset(100, 20),
+		Position = UDim2.fromOffset(16, 104),
+		Text = "",
+		TextSize = 15,
+		TextColor3 = Theme.Colors.SubText,
+		Parent = card,
+	})
+	Util.tween(scale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+	Sounds.play("Reveal", 1.4)
+
+	local closed = false
+	local function close()
+		if closed then
+			return
+		end
+		closed = true
+		Util.tween(scale, 0.2, { Scale = 0.3 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		task.delay(0.22, function()
+			card:Destroy()
+		end)
+	end
+	local function respond(accept: boolean)
+		close()
+		Remote.send("TradeRespond", { From = fromUserId, Accept = accept })
+	end
+	Components.button({
+		Text = "✅ Annehmen",
+		Color = Theme.Colors.Green,
+		Size = UDim2.fromOffset(170, 54),
+		Position = UDim2.new(1, -196, 1, -12),
+		AnchorPoint = Vector2.new(1, 1),
+		TextSize = 19,
+		Parent = card,
+		OnClick = function()
+			respond(true)
+		end,
+	})
+	Components.button({
+		Text = "❌",
+		Color = Theme.Colors.Red,
+		Size = UDim2.fromOffset(70, 54),
+		Position = UDim2.new(1, -112, 1, -12),
+		AnchorPoint = Vector2.new(1, 1),
+		TextSize = 22,
+		Parent = card,
+		OnClick = function()
+			respond(false)
+		end,
+	})
+	task.spawn(function()
+		while not closed do
+			local left = expiresAt - Clock.now()
+			if left <= 0 then
+				close()
+				break
+			end
+			timer.Text = string.format("⏳ %ds", math.ceil(left))
+			task.wait(0.25)
+		end
 	end)
 end
 

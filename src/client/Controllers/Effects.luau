@@ -137,6 +137,18 @@ local function onEffect(kind: string, payload: { [string]: any })
 	elseif kind == "Robbed" then
 		Sounds.play("Alarm", 0.7)
 		Popups.banner("🚨 AUSGERAUBT!", Theme.Colors.Red, tostring(payload.Thief or "") .. " hat dich bestohlen!")
+	elseif kind == "Trade" then
+		Sounds.play("Rebirth", 1.3)
+		Popups.banner("🤝 HANDEL ERFOLGREICH!", Theme.Colors.Cyan, "Deine neuen Pets sind im Inventar")
+	elseif kind == "AfkReward" then
+		Sounds.play("Coin", 1.2)
+		local cash = BigNum.from(payload.Cash)
+		local text = string.format("💤 +%d 💎", tonumber(payload.Gems) or 0)
+		if not BigNum.isZero(cash) then
+			text ..= "  +" .. BigNum.formatMoney(cash, Config.CurrencySymbol)
+			HUD.onSale(cash)
+		end
+		FloatingText.screen(text, Theme.Colors.Gem, HUD.cashPosition() + UDim2.fromOffset(0, 60), 28)
 	elseif kind == "StealAttempt" then
 		Sounds.play("Alarm", 1.2)
 		Toasts.show(
@@ -167,6 +179,16 @@ function Effects.start()
 	end)
 	Net.event("ManagerReveal").OnClientEvent:Connect(function(manager: Types.ManagerData)
 		Popups.managerReveal(manager)
+	end)
+	Net.event("EggHatch").OnClientEvent:Connect(function(info: any)
+		if type(info) == "table" and type(info.Pets) == "table" then
+			Popups.eggHatch(info)
+		end
+	end)
+	Net.event("TradeInvite").OnClientEvent:Connect(function(info: any)
+		if type(info) == "table" then
+			Popups.tradeInvite(tonumber(info.FromUserId) or 0, tostring(info.FromName), tonumber(info.ExpiresAt) or 0)
+		end
 	end)
 	Net.event("ServerEvent").OnClientEvent:Connect(function(info: { [string]: any })
 		if info.Started then

@@ -120,6 +120,17 @@ local function processReceipt(receipt: { [string]: any }): Enum.ProductPurchaseD
 		SessionService.addCash(session, cash)
 		SessionService.effect(session.Player, "Cash", { Amount = cash })
 	end
+	if product.PetSlots then
+		for _ = 1, product.PetSlots do
+			if Formulas.canBuyRobuxSlot(data) then
+				data.PetSlotsRobux += 1
+			else
+				-- Limit schon erreicht (z. B. doppelt gekauft): Ersatz in Gems
+				SessionService.addGems(session, Config.Shop.SlotRefundGems)
+			end
+		end
+		session.Dirty = true
+	end
 	table.insert(data.ReceiptIds, purchaseId)
 	while #data.ReceiptIds > Config.Data.MaxReceiptHistory do
 		table.remove(data.ReceiptIds, 1)

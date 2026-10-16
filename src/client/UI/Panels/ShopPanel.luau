@@ -4,6 +4,7 @@
 	=========
 	  Boosts für Gems (zeitlich begrenzt, stapelbar)
 	  Gems / Geld für Robux (Developer Products)
+	  Pets & Handel (Eier, Pet-Slots für Geld, Trading-Tickets)
 	  Gamepasses (dauerhaft)
 	Robux-Käufe werden vom Server in ProcessReceipt bestätigt.
 ]]
@@ -13,6 +14,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local BigNum = require(Shared.BigNum)
 local Clock = require(Shared.Clock)
 local Config = require(Shared.Config)
 local Formulas = require(Shared.Formulas)
@@ -151,6 +153,84 @@ local function build()
 		})
 	end
 
+	section("🐾 Pets & Handel", nextOrder())
+	local pets = grid(nextOrder())
+	local eggCard = itemCard(
+		pets,
+		"🥚",
+		"Eier & Pets",
+		"Pets boosten dein Einkommen! Schau dir die Chancen an.",
+		Theme.Colors.Orange,
+		1
+	)
+	buyButton(eggCard, Theme.Colors.Orange, function()
+		PanelManager.open("Pets", "Eggs")
+	end).SetText("Zu den Eiern")
+	local slotCard = itemCard(
+		pets,
+		"➕",
+		"Pet-Slot",
+		string.format(
+			"Ein Pet mehr ausrüsten (mit Geld bis %d Slots)",
+			Config.Pets.BaseSlots + #Config.Pets.CashSlotCosts
+		),
+		Theme.Colors.Green,
+		2
+	)
+	local slotButton = buyButton(slotCard, Theme.Colors.Green, function()
+		Remote.send("BuyPetSlot")
+	end)
+	table.insert(entries, {
+		Button = slotButton,
+		Update = function()
+			local snap = ClientState.Snapshot
+			if not snap then
+				return
+			end
+			local cost = Formulas.nextCashSlotCost(snap.Data)
+			if cost then
+				slotButton.SetText(BigNum.formatMoney(cost, Config.CurrencySymbol))
+				slotButton.SetEnabled(BigNum.gte(snap.Data.Cash, cost))
+			else
+				slotButton.SetText("✓ Alle Geld-Slots")
+				slotButton.SetEnabled(false)
+			end
+		end,
+	})
+	for i, count in { 1, 5 } do
+		local card = itemCard(
+			pets,
+			"🎟️",
+			if count == 1 then "Trading-Ticket" else "5 Trading-Tickets",
+			"Damit kannst du Pets mit anderen Spielern tauschen",
+			Theme.Colors.Gold,
+			2 + i
+		)
+		local cost = BigNum.new(Config.Trading.TicketCost * count)
+		local button = buyButton(card, Theme.Colors.Gold, function()
+			Remote.send("BuyTradeTickets", { Count = count })
+		end)
+		table.insert(entries, {
+			Button = button,
+			Update = function()
+				local snap = ClientState.Snapshot
+				if not snap then
+					return
+				end
+				button.SetText(
+					string.format(
+						"%s  (hast %d)",
+						BigNum.formatMoney(cost, Config.CurrencySymbol),
+						snap.Data.TradeTickets
+					)
+				)
+				button.SetEnabled(
+					BigNum.gte(snap.Data.Cash, cost) and snap.Data.TradeTickets + count <= Config.Trading.MaxTickets
+				)
+			end,
+		})
+	end
+
 	section("🛒 Gems & Geld", nextOrder())
 	local products = grid(nextOrder())
 	for i, product in Config.Shop.Products do
@@ -162,6 +242,17 @@ local function build()
 		end)
 		button.SetText(if product.ProductId ~= 0 then " Kaufen (Robux)" else "Bald verfügbar")
 		button.SetEnabled(product.ProductId ~= 0)
+		if product.PetSlots and product.ProductId ~= 0 then
+			table.insert(entries, {
+				Button = button,
+				Update = function()
+					local snap = ClientState.Snapshot
+					local canBuy = snap ~= nil and Formulas.canBuyRobuxSlot(snap.Data)
+					button.SetText(if canBuy then " Kaufen (Robux)" else "✓ Max. Slots")
+					button.SetEnabled(canBuy)
+				end,
+			})
+		end
 	end
 
 	section("🎟️ Gamepasses", nextOrder())

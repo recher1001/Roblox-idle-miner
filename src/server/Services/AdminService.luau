@@ -32,6 +32,7 @@ local ManagerService = require(script.Parent.ManagerService)
 local MineService = require(script.Parent.MineService)
 local NetService = require(script.Parent.NetService)
 local OfflineService = require(script.Parent.OfflineService)
+local PetService = require(script.Parent.PetService)
 local PlotService = require(script.Parent.PlotService)
 local SessionService = require(script.Parent.SessionService)
 
@@ -416,6 +417,10 @@ local ACTIONS: { [string]: ActionDef } = {
 	offline = { Perm = "Progress" },
 	powergive = { Perm = "Powers" },
 	powertake = { Perm = "Powers", Negative = true },
+	petgive = { Perm = "Pets" },
+	pettake = { Perm = "Pets", Negative = true },
+	tickets = { Perm = "Pets" },
+	petslots = { Perm = "Pets" },
 	event = { Perm = "Events", Global = true },
 	kick = { Perm = "Kick", Negative = true },
 	reset = { Perm = "Reset", Negative = true },
@@ -488,6 +493,50 @@ local function apply(target: Session, action: string, value: string): string?
 		end
 		syncTools(target)
 		return (if action == "powergive" then "Kraft erhalten: " else "Kraft entfernt: ") .. value
+	elseif action == "petgive" then
+		local def = Formulas.petDef(value)
+		if not def then
+			return nil
+		end
+		local amount = math.clamp(math.floor(n or 1), 1, 10)
+		local given = 0
+		for _ = 1, amount do
+			if PetService.add(target, value, true) then
+				given += 1
+			end
+		end
+		PetService.refresh(target)
+		if given == 0 then
+			return "Pet-Inventar ist voll"
+		end
+		return string.format("Pet erhalten: %s %s", def.Icon, def.Name)
+	elseif action == "pettake" then
+		local def = Formulas.petDef(value)
+		if not def then
+			return nil
+		end
+		-- zuerst ein nicht ausgerüstetes Exemplar nehmen
+		local victim: string? = nil
+		for _, pet in data.Pets do
+			if pet.Pet == value and (victim == nil or not pet.Equipped) then
+				victim = pet.Id
+			end
+		end
+		if not victim then
+			return "Hat dieses Pet nicht"
+		end
+		PetService.remove(target, victim)
+		PetService.refresh(target)
+		return string.format("Pet entfernt: %s %s", def.Icon, def.Name)
+	elseif action == "tickets" then
+		local amount = math.clamp(math.floor(n or 5), 1, Config.Trading.MaxTickets)
+		data.TradeTickets = math.min(Config.Trading.MaxTickets, data.TradeTickets + amount)
+		return "+" .. amount .. " Trading-Tickets"
+	elseif action == "petslots" then
+		data.PetSlotsBought = #Config.Pets.CashSlotCosts
+		data.PetSlotsRobux = Config.Pets.RobuxSlots
+		PetService.refresh(target)
+		return "Alle Pet-Slots freigeschaltet"
 	elseif action == "event" then
 		EventService.trigger(if value ~= "" then value else nil)
 		return "Event gestartet"
@@ -504,6 +553,7 @@ local function apply(target: Session, action: string, value: string): string?
 		end
 		MineService.resetCycles(target)
 		PlotService.refreshLevels(target)
+		PetService.refresh(target)
 		return "Spielstand zurückgesetzt"
 	end
 	return nil
@@ -619,6 +669,14 @@ function AdminService.setPermission(actor: Session, userId: number, perm: string
 end
 
 --- Infos über einen Spieler für das Admin-Menü
+local function petCounts(session: Session): { [string]: number }
+	local counts: { [string]: number } = {}
+	for _, pet in session.Data.Pets do
+		counts[pet.Pet] = (counts[pet.Pet] or 0) + 1
+	end
+	return counts
+end
+
 function AdminService.info(actor: Session, userId: number): (boolean, string?, any?)
 	if not AdminService.isAdmin(actor.Player) then
 		return false, "Kein Admin"
@@ -637,6 +695,8 @@ function AdminService.info(actor: Session, userId: number): (boolean, string?, a
 			Rebirths = target.Data.Rebirths,
 			Shafts = #target.Data.Shafts,
 			Powers = target.Data.Powers,
+			PetCounts = petCounts(target),
+			Tickets = target.Data.TradeTickets,
 			IsOwner = AdminService.isRealOwner(targetPlayer),
 			IsAdmin = AdminService.isAdmin(targetPlayer),
 		}

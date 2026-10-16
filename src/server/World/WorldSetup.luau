@@ -465,7 +465,7 @@ local function stallPart(
 end
 
 --- Händler im klassischen Roblox-Look: Latzhose, Cowboyhut, Smiley-Gesicht
-local function buildShopkeeper(parent: Instance, feet: CFrame): Model
+local function buildShopkeeper(parent: Instance, feet: CFrame, overalls: Color3): Model
 	local npc = Instance.new("Model")
 	npc.Name = "Shopkeeper"
 	npc.Parent = parent
@@ -474,14 +474,14 @@ local function buildShopkeeper(parent: Instance, feet: CFrame): Model
 		p.CanCollide = false
 		return p
 	end
-	part("LeftLeg", Vector3.new(1, 2, 1), Vector3.new(-0.5, 1, 0), DENIM)
-	part("RightLeg", Vector3.new(1, 2, 1), Vector3.new(0.5, 1, 0), DENIM)
+	part("LeftLeg", Vector3.new(1, 2, 1), Vector3.new(-0.5, 1, 0), overalls)
+	part("RightLeg", Vector3.new(1, 2, 1), Vector3.new(0.5, 1, 0), overalls)
 	part("Torso", Vector3.new(2, 2, 1), Vector3.new(0, 3, 0), SKIN)
 	-- Latzhose (Latz + Träger)
-	part("Bib", Vector3.new(1.4, 1.3, 1.05), Vector3.new(0, 2.65, 0), DENIM)
-	part("StrapL", Vector3.new(0.3, 0.9, 1.05), Vector3.new(-0.55, 3.55, 0), DENIM)
-	part("StrapR", Vector3.new(0.3, 0.9, 1.05), Vector3.new(0.55, 3.55, 0), DENIM)
-	part("Belt", Vector3.new(2.02, 0.5, 1.03), Vector3.new(0, 2.15, 0), DENIM)
+	part("Bib", Vector3.new(1.4, 1.3, 1.05), Vector3.new(0, 2.65, 0), overalls)
+	part("StrapL", Vector3.new(0.3, 0.9, 1.05), Vector3.new(-0.55, 3.55, 0), overalls)
+	part("StrapR", Vector3.new(0.3, 0.9, 1.05), Vector3.new(0.55, 3.55, 0), overalls)
+	part("Belt", Vector3.new(2.02, 0.5, 1.03), Vector3.new(0, 2.15, 0), overalls)
 	part("LeftArm", Vector3.new(1, 2, 1), Vector3.new(-1.5, 3, 0), SKIN)
 	part("RightArm", Vector3.new(1, 2, 1), Vector3.new(1.5, 3, 0), SKIN)
 	local head = part("Head", Vector3.new(2, 1, 1), Vector3.new(0, 4.5, 0), SKIN)
@@ -509,9 +509,45 @@ local function buildShopkeeper(parent: Instance, feet: CFrame): Model
 	return npc
 end
 
-local function buildShopStall(parent: Instance, origin: CFrame)
+export type StallStyle = {
+	Name: string,
+	AwningA: Color3,
+	AwningB: Color3,
+	Sign: string,
+	Keeper: string,
+	Prompt: string,
+	Panel: string,
+	Eggs: boolean, -- Eier statt Edelsteine auf der Theke
+	Overalls: Color3,
+}
+
+local SHOP_STYLE: StallStyle = {
+	Name = "ShopStall",
+	AwningA = Color3.fromRGB(30, 130, 255),
+	AwningB = Color3.fromRGB(245, 248, 255),
+	Sign = "SHOP",
+	Keeper = "🛒 Händler Hans",
+	Prompt = "Shop öffnen",
+	Panel = "Shop",
+	Eggs = false,
+	Overalls = DENIM,
+}
+
+local EGG_STYLE: StallStyle = {
+	Name = "EggStall",
+	AwningA = Color3.fromRGB(255, 70, 170),
+	AwningB = Color3.fromRGB(255, 226, 60),
+	Sign = "EIER",
+	Keeper = "🥚 Eier-Emma",
+	Prompt = "Eier & Pets",
+	Panel = "Pets",
+	Eggs = true,
+	Overalls = Color3.fromRGB(220, 60, 150),
+}
+
+local function buildShopStall(parent: Instance, origin: CFrame, style: StallStyle)
 	local stall = Instance.new("Model")
-	stall.Name = "ShopStall"
+	stall.Name = style.Name
 	stall.Parent = parent
 	local function at(x: number, y: number, z: number): CFrame
 		return origin * CFrame.new(x, y, z)
@@ -532,13 +568,31 @@ local function buildShopStall(parent: Instance, origin: CFrame)
 		Color3.fromRGB(96, 96, 108),
 		Enum.Material.SmoothPlastic
 	)
-	-- Ware auf der Theke: Edelsteine, Geldsack
-	local gemColors = {
-		Color3.fromRGB(0, 226, 255),
-		Color3.fromRGB(255, 60, 170),
-		Color3.fromRGB(150, 255, 0),
-		Color3.fromRGB(255, 200, 0),
-	}
+	-- Ware auf der Theke: Edelsteine + Geldsack oder bunte Eier
+	if style.Eggs then
+		for i, egg in Config.Eggs do
+			local e = stallPart(
+				stall,
+				"Egg",
+				Vector3.new(1.3, 1.7, 1.3),
+				at(-7.4 + i * 2.1, 4.65, -3.3) * CFrame.Angles(0, 0, math.rad((i % 2) * 14 - 7)),
+				egg.Color,
+				Enum.Material.SmoothPlastic
+			)
+			e.CanCollide = false
+			local mesh = Instance.new("SpecialMesh")
+			mesh.MeshType = Enum.MeshType.Sphere
+			mesh.Parent = e
+		end
+	end
+	local gemColors: { Color3 } = if style.Eggs
+		then {}
+		else {
+			Color3.fromRGB(0, 226, 255),
+			Color3.fromRGB(255, 60, 170),
+			Color3.fromRGB(150, 255, 0),
+			Color3.fromRGB(255, 200, 0),
+		}
 	for i, c in gemColors do
 		local gem = stallPart(
 			stall,
@@ -550,15 +604,17 @@ local function buildShopStall(parent: Instance, origin: CFrame)
 		)
 		gem.CanCollide = false
 	end
-	local bag = stallPart(
-		stall,
-		"MoneyBag",
-		Vector3.new(1.6, 1.6, 1.6),
-		at(4.6, 4.6, -3.3),
-		Color3.fromRGB(200, 160, 90),
-		Enum.Material.Fabric
-	)
-	bag.Shape = Enum.PartType.Ball
+	if not style.Eggs then
+		local bag = stallPart(
+			stall,
+			"MoneyBag",
+			Vector3.new(1.6, 1.6, 1.6),
+			at(4.6, 4.6, -3.3),
+			Color3.fromRGB(200, 160, 90),
+			Enum.Material.Fabric
+		)
+		bag.Shape = Enum.PartType.Ball
+	end
 	-- Dach: blau-weiße Streifen, hinten hoch, vorne tief
 	local slope = math.atan(2 / 8.6)
 	local stripes = 8
@@ -569,7 +625,7 @@ local function buildShopStall(parent: Instance, origin: CFrame)
 			"Awning",
 			Vector3.new(2, 0.45, 9.4),
 			at(x, 10.4, 0) * CFrame.Angles(-slope, 0, 0),
-			if i % 2 == 0 then Color3.fromRGB(30, 130, 255) else Color3.fromRGB(245, 248, 255),
+			if i % 2 == 0 then style.AwningA else style.AwningB,
 			Enum.Material.SmoothPlastic
 		)
 	end
@@ -578,7 +634,7 @@ local function buildShopStall(parent: Instance, origin: CFrame)
 		"AwningTrim",
 		Vector3.new(16.4, 0.7, 0.5),
 		at(0, 9.1, -4.6),
-		Color3.fromRGB(30, 130, 255),
+		style.AwningA,
 		Enum.Material.SmoothPlastic
 	)
 
@@ -597,14 +653,14 @@ local function buildShopStall(parent: Instance, origin: CFrame)
 	label.BackgroundTransparency = 1
 	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
-	label.Text = "SHOP"
+	label.Text = style.Sign
 	label.TextColor3 = Color3.fromRGB(255, 255, 255)
 	label.TextStrokeTransparency = 0
 	label.TextStrokeColor3 = Color3.fromRGB(30, 18, 12)
 	label.Parent = gui
 
 	-- Händler hinter der Theke
-	local npc = buildShopkeeper(stall, at(0, 0, -1.4))
+	local npc = buildShopkeeper(stall, at(0, 0, -1.4), style.Overalls)
 	local head = npc:FindFirstChild("Head") :: BasePart
 	local tag = Instance.new("BillboardGui")
 	tag.Size = UDim2.fromScale(8, 2.4)
@@ -618,7 +674,7 @@ local function buildShopStall(parent: Instance, origin: CFrame)
 	tagLabel.BackgroundTransparency = 1
 	tagLabel.Font = Enum.Font.FredokaOne
 	tagLabel.TextScaled = true
-	tagLabel.Text = "🛒 Händler Hans"
+	tagLabel.Text = style.Keeper
 	tagLabel.TextColor3 = Color3.fromRGB(255, 220, 60)
 	tagLabel.TextStrokeTransparency = 0
 	tagLabel.Parent = tag
@@ -628,17 +684,95 @@ local function buildShopStall(parent: Instance, origin: CFrame)
 	promptPart.Transparency = 1
 	promptPart.CanCollide = false
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Shop öffnen"
-	prompt.ObjectText = "Händler Hans"
+	prompt.ActionText = style.Prompt
+	prompt.ObjectText = string.gsub(style.Keeper, "^%S+%s", "")
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 12
 	prompt.RequiresLineOfSight = false
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
-	prompt:SetAttribute("OpenPanel", "Shop")
+	prompt:SetAttribute("OpenPanel", style.Panel)
 	prompt.Parent = promptPart
 end
 
 WorldSetup.ShopStallOffset = Vector3.new(-44, 0, 112)
+WorldSetup.EggStallOffset = Vector3.new(44, 0, 112)
+WorldSetup.AfkZoneOffset = Vector3.new(0, 0, 208)
+-- Wird von decorate() gesetzt, der AfkService prüft damit die Position
+WorldSetup.AfkZone = nil :: { Center: Vector3, Radius: number }?
+
+--- AFK-Zone: leuchtende Plattform mit Schild. Wer drinsteht, bekommt
+--- Gems und das Offline-Einkommen seiner Minen (siehe AfkService).
+local function buildAfkZone(parent: Instance, center: Vector3)
+	local zone = Instance.new("Model")
+	zone.Name = "AfkZone"
+	zone.Parent = parent
+	local radius = Config.Afk.Radius
+	local function disc(name: string, r: number, height: number, y: number, color: Color3, mat: Enum.Material): Part
+		local p = MineBuilder.Part({
+			Name = name,
+			Size = Vector3.new(height, r * 2, r * 2),
+			CFrame = CFrame.new(center + Vector3.new(0, y, 0)) * CFrame.Angles(0, 0, math.pi / 2),
+			Color = color,
+			Material = mat,
+			Parent = zone,
+		})
+		p.Shape = Enum.PartType.Cylinder
+		return p
+	end
+	disc("Rim", radius + 1.2, 0.8, 0.1, Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic)
+	local glow = disc("Glow", radius + 0.4, 0.9, 0.15, Color3.fromRGB(160, 70, 255), Enum.Material.Neon)
+	disc("Floor", radius - 0.6, 1, 0.2, Color3.fromRGB(70, 30, 170), Enum.Material.SmoothPlastic)
+	light(glow, Color3.fromRGB(170, 90, 255), 30, 2)
+	-- schwebende Kristalle rundherum
+	for i = 0, 5 do
+		local a = i / 6 * math.pi * 2
+		local crystal = MineBuilder.Part({
+			Name = "Crystal",
+			Size = Vector3.new(1.6, 3.2, 1.6),
+			CFrame = CFrame.new(center + Vector3.new(math.cos(a) * (radius + 3), 5, math.sin(a) * (radius + 3)))
+				* CFrame.Angles(0, a, math.rad(20)),
+			Color = NEON[i + 1],
+			Material = Enum.Material.Neon,
+			Parent = zone,
+		})
+		crystal.CanCollide = false
+	end
+	-- Schild über der Zone
+	local anchor = MineBuilder.Part({
+		Name = "SignAnchor",
+		Size = Vector3.new(1, 1, 1),
+		CFrame = CFrame.new(center + Vector3.new(0, 12, 0)),
+		Color = Color3.new(1, 1, 1),
+		Parent = zone,
+	})
+	anchor.Transparency = 1
+	anchor.CanCollide = false
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromScale(22, 7)
+	gui.MaxDistance = 220
+	gui.LightInfluence = 0
+	gui.Parent = anchor
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.fromScale(1, 0.6)
+	title.BackgroundTransparency = 1
+	title.Font = Enum.Font.FredokaOne
+	title.TextScaled = true
+	title.Text = "💤 AFK-ZONE 💤"
+	title.TextColor3 = Color3.fromRGB(220, 170, 255)
+	title.TextStrokeTransparency = 0
+	title.Parent = gui
+	local sub = Instance.new("TextLabel")
+	sub.Size = UDim2.fromScale(1, 0.4)
+	sub.Position = UDim2.fromScale(0, 0.6)
+	sub.BackgroundTransparency = 1
+	sub.Font = Enum.Font.FredokaOne
+	sub.TextScaled = true
+	sub.Text = string.format("+%d 💎 pro Minute + Minen-Geld", Config.Afk.Gems)
+	sub.TextColor3 = Color3.fromRGB(255, 255, 255)
+	sub.TextStrokeTransparency = 0
+	sub.Parent = gui
+	WorldSetup.AfkZone = { Center = center, Radius = radius }
+end
 
 function WorldSetup.decorate(world: Instance, centerX: number, width: number)
 	local deco = Instance.new("Folder")
@@ -650,7 +784,11 @@ function WorldSetup.decorate(world: Instance, centerX: number, width: number)
 	buildFountain(deco, plaza)
 	buildSign(deco, Vector3.new(centerX, 22, 160))
 	local stallPos = Vector3.new(centerX, 0, 0) + WorldSetup.ShopStallOffset
-	buildShopStall(deco, CFrame.new(stallPos))
+	buildShopStall(deco, CFrame.new(stallPos), SHOP_STYLE)
+	local eggStallPos = Vector3.new(centerX, 0, 0) + WorldSetup.EggStallOffset
+	buildShopStall(deco, CFrame.new(eggStallPos), EGG_STYLE)
+	local afkPos = Vector3.new(centerX, 0, 0) + WorldSetup.AfkZoneOffset
+	buildAfkZone(deco, afkPos)
 
 	-- Wimpelketten über dem Gehweg
 	local half = width / 2
@@ -674,6 +812,8 @@ function WorldSetup.decorate(world: Instance, centerX: number, width: number)
 		for _ = 1, 10 do
 			local p = Vector3.new(rng:NextNumber(centerX - half - 80, centerX + half + 80), 0, rng:NextNumber(104, 235))
 			local nearStall = (p - stallPos).Magnitude < 20
+				or (p - eggStallPos).Magnitude < 20
+				or (p - afkPos).Magnitude < Config.Afk.Radius + 12
 			if not nearStall and ((p - plaza).Magnitude > 40 and math.abs(p.X - centerX) > 26 or p.Z > 175) then
 				return p
 			end

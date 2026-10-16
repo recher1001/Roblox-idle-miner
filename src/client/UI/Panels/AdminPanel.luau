@@ -19,12 +19,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNum = require(Shared.BigNum)
 local Config = require(Shared.Config)
+local Formulas = require(Shared.Formulas)
 local Types = require(Shared.Types)
 
 local ClientState = require(script.Parent.Parent.Parent.ClientState)
 local Remote = require(script.Parent.Parent.Parent.Remote)
 local Components = require(script.Parent.Parent.Components)
 local PanelManager = require(script.Parent.Parent.PanelManager)
+local PetVisuals = require(script.Parent.Parent.PetVisuals)
 local Popups = require(script.Parent.Parent.Popups)
 local Root = require(script.Parent.Parent.Root)
 local Theme = require(script.Parent.Parent.Theme)
@@ -35,6 +37,7 @@ local AdminPanel = {}
 local TABS = {
 	{ Id = "Player", Text = "🎯 Spieler" },
 	{ Id = "Powers", Text = "⚡ Kräfte" },
+	{ Id = "Pets", Text = "🐾 Pets" },
 	{ Id = "Server", Text = "🌍 Server" },
 	{ Id = "Admins", Text = "👑 Admins" },
 }
@@ -309,6 +312,101 @@ local function buildPowersTab()
 	end
 end
 
+local function adminPetCard(parent: Frame, petId: string, owned: number)
+	local def = Config.Pets.List[1]
+	for _, d in Config.Pets.List do
+		if d.Id == petId then
+			def = d
+		end
+	end
+	local tile = PetVisuals.petTile({ Parent = parent }, def.Id, 34)
+	local name = Util.label({
+		Size = UDim2.new(1, -8, 0, 20),
+		Position = UDim2.fromOffset(4, 44),
+		Text = def.Name,
+		Font = Theme.Fonts.Title,
+		TextSize = 16,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		Parent = tile,
+	})
+	Util.textStroke(1.2).Parent = name
+	local count = Util.label({
+		Size = UDim2.new(1, 0, 0, 18),
+		Position = UDim2.fromOffset(0, 64),
+		Text = string.format("%s  •  hat %d", Formulas.formatPetMultiplier(def.Multiplier), owned),
+		TextSize = 14,
+		Parent = tile,
+	})
+	Util.textStroke(1.2).Parent = count
+	local function send(action: string)
+		Remote.send("AdminAction", { Action = action, Target = targetUserId, Value = def.Id }, function(r)
+			if r.ok then
+				AdminPanel.refreshTarget()
+			end
+		end)
+	end
+	Components.button({
+		Text = "+1",
+		Color = Theme.Colors.Green,
+		Size = UDim2.new(0.5, -9, 0, 36),
+		Position = UDim2.new(0, 6, 1, -6),
+		AnchorPoint = Vector2.new(0, 1),
+		TextSize = 17,
+		Parent = tile,
+		OnClick = function()
+			send("petgive")
+		end,
+	})
+	Components.button({
+		Text = "−1",
+		Color = Theme.Colors.Red,
+		Size = UDim2.new(0.5, -9, 0, 36),
+		Position = UDim2.new(1, -6, 1, -6),
+		AnchorPoint = Vector2.new(1, 1),
+		TextSize = 17,
+		Parent = tile,
+		OnClick = function()
+			send("pettake")
+		end,
+	})
+end
+
+local function buildPetsTab()
+	if not can("Pets") then
+		infoLine("Du hast keine Berechtigung, Pets zu vergeben.")
+		return
+	end
+	local counts = if targetInfo and type(targetInfo.PetCounts) == "table" then targetInfo.PetCounts else {}
+	local tickets = if targetInfo then tonumber(targetInfo.Tickets) or 0 else 0
+	section(
+		"🎟️ Extras"
+			.. (if targetInfo then " für " .. tostring(targetInfo.Name) .. "  (" .. tickets .. " Tickets)" else "")
+	)
+	local extras = buttonGrid()
+	actionButton(extras, "🎟️ +5 Tickets", Theme.Colors.Gold, "tickets", "5")
+	actionButton(extras, "🎟️ +50 Tickets", Theme.Colors.Gold, "tickets", "50")
+	actionButton(extras, "🐾 Alle Pet-Slots", Theme.Colors.Green, "petslots")
+	for _, egg in Config.Eggs do
+		section("🥚 " .. egg.Name)
+		local grid: Frame = Util.new("Frame", {
+			Size = UDim2.fromScale(1, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			LayoutOrder = nextOrder(),
+			Parent = list,
+		}, {
+			Util.new("UIGridLayout", {
+				CellSize = UDim2.fromOffset(128, 128),
+				CellPadding = UDim2.fromOffset(8, 8),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+		})
+		for _, chance in egg.Chances do
+			adminPetCard(grid, chance.Pet, tonumber(counts[chance.Pet]) or 0)
+		end
+	end
+end
+
 local function buildServerTab()
 	if not can("Events") then
 		infoLine("Du hast keine Berechtigung, Events zu starten.")
@@ -453,7 +551,7 @@ local function rebuild()
 	end
 	order = 0
 	clearList()
-	targetBar.Visible = currentTab == "Player" or currentTab == "Powers"
+	targetBar.Visible = currentTab == "Player" or currentTab == "Powers" or currentTab == "Pets"
 	list.Position = UDim2.fromOffset(0, if targetBar.Visible then 128 else 68)
 	list.Size = UDim2.new(1, 0, 1, if targetBar.Visible then -128 else -68)
 	local info = admin()
@@ -467,6 +565,8 @@ local function rebuild()
 		buildPlayerTab()
 	elseif currentTab == "Powers" then
 		buildPowersTab()
+	elseif currentTab == "Pets" then
+		buildPetsTab()
 	elseif currentTab == "Server" then
 		buildServerTab()
 	elseif currentTab == "Admins" then
@@ -525,8 +625,8 @@ function AdminPanel.start()
 		tabButtons[tab.Id] = Components.button({
 			Text = tab.Text,
 			Color = Theme.Colors.CardLight,
-			Size = UDim2.fromOffset(200, 54),
-			TextSize = 20,
+			Size = UDim2.fromOffset(172, 54),
+			TextSize = 19,
 			LayoutOrder = i,
 			Parent = tabBar,
 			OnClick = function()
