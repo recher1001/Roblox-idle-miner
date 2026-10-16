@@ -71,7 +71,16 @@ local function itemCard(
 	order: number
 ): Frame
 	local card = Components.card({ LayoutOrder = order, Parent = parent }, accent)
-	Components.icon(icon, 74, accent, { Position = UDim2.fromOffset(14, 12), Parent = card })
+	local iconFrame: Frame = Util.new("Frame", {
+		Size = UDim2.fromOffset(72, 72),
+		Position = UDim2.fromOffset(14, 14),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Parent = card,
+	}, {
+		Util.round(),
+		Util.gradient(Theme.lighten(accent, 0.25), Theme.darken(accent, 0.35)),
+	})
+	Util.label({ Size = UDim2.fromScale(1, 1), Text = icon, TextSize = 38, Parent = iconFrame })
 	local title = Util.label({
 		Size = UDim2.new(1, -110, 0, 30),
 		Position = UDim2.fromOffset(98, 12),

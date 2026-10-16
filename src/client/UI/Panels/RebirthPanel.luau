@@ -85,11 +85,18 @@ function RebirthPanel.start()
 	end)
 	local c = window.Content
 
-	Components.icon("⭐", 110, Theme.Colors.Purple, {
+	local star: Frame = Util.new("Frame", {
+		Size = UDim2.fromOffset(110, 110),
 		Position = UDim2.new(0.5, 0, 0, 4),
 		AnchorPoint = Vector2.new(0.5, 0),
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		Parent = c,
+	}, {
+		Util.round(),
+		Util.gradient(Theme.lighten(Theme.Colors.Purple, 0.3), Theme.darken(Theme.Colors.Purple, 0.3)),
+		Util.stroke(Color3.new(1, 1, 1), 3, 0.3),
 	})
+	Util.label({ Size = UDim2.fromScale(1, 1), Text = "⭐", TextSize = 64, Parent = star })
 
 	Util.label({
 		Size = UDim2.new(1, 0, 0, 24),

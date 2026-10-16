@@ -265,12 +265,19 @@ local function buildBanner(key: string, title: string, subtitle: string, icon: s
 		})
 		gem.ZIndex = 1
 	end
-	local orb = Components.icon(icon, 110, c, {
+	local orb: Frame = Util.new("Frame", {
+		Size = UDim2.fromOffset(110, 110),
 		Position = UDim2.new(0, 18, 0.5, 0),
 		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		ZIndex = 3,
 		Parent = banner,
+	}, {
+		Util.round(),
+		Util.gradient(Theme.lighten(c, 0.45), Theme.darken(c, 0.1)),
+		Util.stroke(Color3.new(1, 1, 1), 4),
 	})
+	Util.label({ Size = UDim2.fromScale(1, 1), Text = icon, TextSize = 56, ZIndex = 4, Parent = orb })
 	local orbScale: UIScale = Util.new("UIScale", { Parent = orb })
 	Anim.pulse(orbScale, 0.05, 3)
 
@@ -399,11 +406,18 @@ end
 local function buildTrackRow(key: string, def: Config.TrackDef, order: number)
 	local color = buttonColor(stationColor(key))
 	local card = Components.card({ Size = UDim2.new(1, 0, 0, 108), LayoutOrder = order, Parent = body }, color)
-	Components.icon(def.Icon, 76, color, {
+	local icon: Frame = Util.new("Frame", {
+		Size = UDim2.fromOffset(74, 74),
 		Position = UDim2.new(0, 14, 0.5, 0),
 		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		Parent = card,
+	}, {
+		Util.round(),
+		Util.gradient(Theme.lighten(color, 0.4), Theme.darken(color, 0.1)),
+		Util.stroke(Color3.new(1, 1, 1), 3),
 	})
+	Util.label({ Size = UDim2.fromScale(1, 1), Text = def.Icon, TextSize = 40, Parent = icon })
 
 	local textWidth = -330
 	local name = Util.label({

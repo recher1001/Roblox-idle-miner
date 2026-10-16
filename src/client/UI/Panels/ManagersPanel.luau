@@ -106,7 +106,7 @@ local function avatarBadge(parent: Instance, m: ManagerData, position: UDim2, si
 			Parent = badge,
 		}, { Util.round() })
 	else
-		Util.emoji({ Size = UDim2.fromScale(1, 1), Text = "👔", TextSize = size * 0.55, Parent = badge })
+		Util.label({ Size = UDim2.fromScale(1, 1), Text = "👔", TextSize = size * 0.5, Parent = badge })
 	end
 end
 

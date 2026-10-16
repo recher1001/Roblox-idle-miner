@@ -20,6 +20,7 @@ local Types = require(Shared.Types)
 local Remote = require(script.Parent.Parent.Remote)
 local Sounds = require(script.Parent.Parent.Controllers.Sounds)
 local Components = require(script.Parent.Components)
+local Faces = require(script.Parent.Faces)
 local Root = require(script.Parent.Root)
 local Theme = require(script.Parent.Theme)
 local Util = require(script.Parent.Util)
@@ -308,13 +309,10 @@ local function playReveal(m: Types.ManagerData)
 			Parent = card,
 		}, { Util.round(), Util.stroke(Color3.new(1, 1, 1), 3, 0.2) })
 	else
-		Util.emoji({
-			Size = UDim2.new(1, 0, 0, 120),
-			Position = UDim2.fromOffset(0, 24),
-			Text = "👔",
-			TextSize = 96,
-			Parent = card,
-		})
+		local face = Faces.create("Cool", 120, card.ZIndex + 2)
+		face.AnchorPoint = Vector2.new(0.5, 0)
+		face.Position = UDim2.new(0.5, 0, 0, 22)
+		face.Parent = card
 	end
 	local rarityLabel = Util.label({
 		Size = UDim2.new(1, -20, 0, 40),

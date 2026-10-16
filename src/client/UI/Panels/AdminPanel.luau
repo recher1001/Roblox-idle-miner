@@ -260,9 +260,11 @@ local function buildPowersTab()
 			LayoutOrder = nextOrder(),
 			Parent = list,
 		}, if has then Theme.Colors.Green else nil)
-		Components.icon(def.Icon, 62, if has then Theme.Colors.Green else Theme.Colors.Purple, {
-			Position = UDim2.new(0, 12, 0.5, 0),
-			AnchorPoint = Vector2.new(0, 0.5),
+		Util.label({
+			Size = UDim2.fromOffset(70, 84),
+			Position = UDim2.fromOffset(10, 0),
+			Text = def.Icon,
+			TextSize = 40,
 			Parent = card,
 		})
 		local name = Util.label({
@@ -563,7 +565,7 @@ function AdminPanel.start()
 	end)
 
 	openButton = Components.button({
-		Text = "🛠 Admin",
+		Text = "Admin",
 		Color = Theme.Colors.Orange,
 		Size = UDim2.fromOffset(130, 52),
 		-- oben links (unten links liegt auf dem Handy der Joystick)
@@ -574,6 +576,7 @@ function AdminPanel.start()
 			PanelManager.toggle("Admin")
 		end,
 	})
+	Components.addFace(openButton, "Cowboy", 42)
 	openButton.Instance.Visible = false
 
 	-- 🪄 Admin-Stab: auf einen Spieler klicken -> Admin-Menü für diesen Spieler

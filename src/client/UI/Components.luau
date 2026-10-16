@@ -7,11 +7,22 @@
 ]]
 
 local Anim = require(script.Parent.Anim)
+local Faces = require(script.Parent.Faces)
 local Theme = require(script.Parent.Theme)
 local Util = require(script.Parent.Util)
 local Sounds = require(script.Parent.Parent.Controllers.Sounds)
 
 local Components = {}
+
+-- Welche Menü-Emojis durch welches gezeichnete Gesicht ersetzt werden
+Components.FaceForIcon = {
+	["⬆️"] = "MindBlown", -- Upgrades
+	["👔"] = "Cool", -- Manager
+	["⭐"] = "Skull", -- Rebirth
+	["🛒"] = "KissHeart", -- Shop
+	["🎁"] = "Hug", -- Täglich
+	["🛠"] = "Cowboy", -- Admin
+} :: { [string]: string }
 
 ----------------------------------------------------------------------
 -- Button
@@ -61,7 +72,7 @@ function Components.button(props: ButtonProps): Button
 		TextWrapped = true,
 		ZIndex = (props.ZIndex or 1) + 1,
 	})
-	Util.textStroke(2.2).Parent = label
+	Util.textStroke(1.5).Parent = label
 
 	local button: TextButton = Util.new("TextButton", {
 		Name = "Button",
@@ -307,11 +318,19 @@ function Components.window(title: string, icon: string, accent: Color3, size: Ve
 		Parent = header,
 	}, { Util.gradient(Theme.darken(accent, 0.1), Theme.darken(accent, 0.15)) })
 
+	-- Emoji im Titel durch ein gezeichnetes Cartoon-Gesicht ersetzen
+	local faceName = Components.FaceForIcon[icon]
+	if faceName then
+		local face = Faces.create(faceName, 50, 6)
+		face.AnchorPoint = Vector2.new(0, 0.5)
+		face.Position = UDim2.new(0, 14, 0.5, 0)
+		face.Parent = header
+	end
 	local titleLabel = Util.label({
 		Name = "Title",
 		Size = UDim2.new(1, -140, 1, 0),
-		Position = UDim2.fromOffset(24, 0),
-		Text = icon .. "  " .. title,
+		Position = UDim2.fromOffset(if faceName then 74 else 24, 0),
+		Text = if faceName then title else icon .. "  " .. title,
 		Font = Theme.Fonts.Title,
 		TextSize = Theme.TextSize.Title,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -410,51 +429,6 @@ function Components.pill(props: { [string]: any }, accent: Color3): Frame
 	})
 end
 
---- Sticker-Icon im Cartoon-Stil: abgerundetes Quadrat, dicker dunkler Rand,
---- kräftiger Farbverlauf, Glanzlicht oben und ein umrandetes Emoji darin.
-function Components.icon(emoji: string, size: number, color: Color3?, props: { [string]: any }?): Frame
-	local c = color or Theme.Colors.Gold
-	local defaults: { [string]: any } = {
-		Name = "Icon",
-		Size = UDim2.fromOffset(size, size),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-	}
-	if props then
-		for k, v in props do
-			defaults[k] = v
-		end
-	end
-	local tile: Frame = Util.new("Frame", defaults, {
-		Util.new("UICorner", { CornerRadius = UDim.new(0.3, 0) }),
-		Util.gradient(Theme.lighten(c, 0.35), Theme.darken(c, 0.12)),
-		Util.new("UIStroke", {
-			Color = Color3.fromRGB(26, 14, 10),
-			Thickness = math.max(2.5, size / 22),
-			LineJoinMode = Enum.LineJoinMode.Round,
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-		}),
-	})
-	-- Glanzlicht (obere Hälfte)
-	Util.new("Frame", {
-		Name = "Gloss",
-		Size = UDim2.fromScale(0.82, 0.36),
-		Position = UDim2.fromScale(0.09, 0.07),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.65,
-		ZIndex = tile.ZIndex,
-		Parent = tile,
-	}, { Util.new("UICorner", { CornerRadius = UDim.new(0.5, 0) }) })
-	Util.emoji({
-		Name = "Emoji",
-		Size = UDim2.fromScale(1, 1),
-		Text = emoji,
-		TextSize = math.floor(size * 0.58),
-		ZIndex = tile.ZIndex + 1,
-		Parent = tile,
-	})
-	return tile
-end
-
 --- Macht den Rand eines Elements zu einem animierten Regenbogen
 function Components.rainbowBorder(gui: GuiObject, thickness: number?)
 	local existing = gui:FindFirstChildOfClass("UIStroke")
@@ -464,6 +438,18 @@ function Components.rainbowBorder(gui: GuiObject, thickness: number?)
 	s.Thickness = thickness or s.Thickness
 	local rainbow: UIGradient = Util.new("UIGradient", { Color = Theme.Rainbow, Parent = s })
 	Anim.rotate(rainbow, 90)
+end
+
+--- Setzt ein gezeichnetes Cartoon-Gesicht links in einen Button
+function Components.addFace(button: Button, faceName: string, size: number?)
+	local s = size or 44
+	local face = Faces.create(faceName, s, button.Instance.ZIndex + 2)
+	face.AnchorPoint = Vector2.new(0, 0.5)
+	face.Position = UDim2.new(0, 8, 0.5, 0)
+	face.Parent = button.Instance
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, s + 8)
+	pad.Parent = button.Label
 end
 
 return Components

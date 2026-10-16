@@ -58,22 +58,12 @@ function Util.stroke(color: Color3, thickness: number?, transparency: number?): 
 end
 
 function Util.textStroke(thickness: number?): any
-	-- dicke, dunkle Kontur = Sticker-/Cartoon-Look (auch für Emojis im Text)
 	return Util.new("UIStroke", {
-		Color = Color3.fromRGB(26, 14, 10),
-		Thickness = thickness or 2,
-		Transparency = 0,
-		LineJoinMode = Enum.LineJoinMode.Round,
+		Color = Color3.new(0, 0, 0),
+		Thickness = thickness or 1.5,
+		Transparency = 0.35,
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
 	})
-end
-
---- Emoji als "Sticker": große Glyphe mit dicker dunkler Umrandung
-function Util.emoji(props: { [string]: any }): TextLabel
-	local label = Util.label(props)
-	local size = label.TextSize
-	Util.textStroke(math.max(2, size / 14)).Parent = label
-	return label
 end
 
 --- Vertikaler Farbverlauf (oben hell -> unten dunkel)

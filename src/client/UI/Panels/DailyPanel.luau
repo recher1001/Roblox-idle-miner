@@ -93,16 +93,13 @@ function DailyPanel.start()
 			TextSize = 20,
 			Parent = card,
 		})
-		Components.icon(
-			if isBig then "👑" else "💎",
-			56,
-			if isBig then Theme.Colors.Gold else Theme.Colors.Purple,
-			{
-				Position = UDim2.new(0.5, 0, 0, 34),
-				AnchorPoint = Vector2.new(0.5, 0),
-				Parent = card,
-			}
-		)
+		Util.label({
+			Size = UDim2.new(1, 0, 0, 50),
+			Position = UDim2.fromOffset(0, 36),
+			Text = if isBig then "👑" else "💎",
+			TextSize = 40,
+			Parent = card,
+		})
 		Util.label({
 			Size = UDim2.new(1, -8, 0, 22),
 			Position = UDim2.fromOffset(4, 92),
@@ -120,7 +117,7 @@ function DailyPanel.start()
 			TextColor3 = Theme.Colors.Money,
 			Parent = card,
 		})
-		local check = Util.emoji({
+		local check = Util.label({
 			Size = UDim2.fromScale(1, 1),
 			Text = "✅",
 			TextSize = 54,

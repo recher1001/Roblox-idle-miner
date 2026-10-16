@@ -207,8 +207,7 @@ function MineBuilder.makeInfoBillboard(anchor: BasePart, accent: Color3): Billbo
 	title.Font = Enum.Font.FredokaOne
 	title.TextScaled = true
 	title.TextColor3 = Color3.new(1, 1, 1)
-	title.TextStrokeTransparency = 0
-	title.TextStrokeColor3 = Color3.fromRGB(26, 14, 10)
+	title.TextStrokeTransparency = 0.35
 	title.Text = ""
 	title.Parent = frame
 
@@ -221,8 +220,7 @@ function MineBuilder.makeInfoBillboard(anchor: BasePart, accent: Color3): Billbo
 	sub.TextScaled = true
 	-- Akzentfarbe nur aufgehellt nutzen, damit auch dunkle Erze (Kohle) lesbar bleiben
 	sub.TextColor3 = accent:Lerp(Color3.new(1, 1, 1), 0.65)
-	sub.TextStrokeTransparency = 0
-	sub.TextStrokeColor3 = Color3.fromRGB(26, 14, 10)
+	sub.TextStrokeTransparency = 0.35
 	sub.Text = ""
 	sub.Parent = frame
 
