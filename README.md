@@ -36,6 +36,7 @@ es werden **keine externen Assets** benötigt.
 | **Pets & Eier** | 6 Eier (3 für Geld, 3 für Gems) mit 38 Pets von Gewöhnlich bis **Geheim**. Jede Chance steht im Menü (z. B. 1 %, 0,5 %, 0,012 %). 1x oder 3x öffnen mit Schlüpf-Animation, seltene Pets werden dem ganzen Server verkündet. Ausgerüstete Pets boosten das Einkommen (Boni addieren sich) und fliegen hinter dir her |
 | **Pet-Slots** | 3 Slots gratis, mit Spielgeld bis 5, mit Robux bis 10. „⭐ Beste ausrüsten“ wählt automatisch die stärksten Pets |
 | **Handeln** | Pets gegen Pets tauschen (nie Geld): Anfrage → beide legen Pets rein → beide „Bereit“ → 3-s-Countdown. Kostet beide 1 🎟️ Trading-Ticket (günstig im Shop) |
+| **Bestenlisten** | Zwei große Tafeln auf dem Platz (Top 10 mit Avatar, alle Server): **💰 Meistes Geld** und **💸 Geld pro Sekunde**. Dazu die Spalte „Pro Sek.“ in der Spielerliste |
 | **AFK-Zone** | Lila Plattform hinter dem Brunnen: pro Minute **+1 💎** und das Offline-Einkommen deiner Minen |
 | **Rebirth** | Fortschritt zurücksetzen → Prestige-Punkte → dauerhafter Einkommens-Multiplikator + Gems |
 | **Offline-Einnahmen** | Beim Beitreten: Popup mit dem Verdienst seit dem letzten Besuch (max. 8 h, mit Gamepass 24 h), x2 für Gems |
@@ -223,6 +224,7 @@ src/
 │     ├─ PetService         Eier öffnen, Pets ausrüsten/freilassen, Slots, Tickets
 │     ├─ TradeService       Pet-Handel zwischen Spielern
 │     ├─ AfkService         AFK-Zone (Gems + Minen-Geld pro Minute)
+│     ├─ LeaderboardService Bestenlisten-Tafeln (OrderedDataStore, Top 10)
 │     └─ AdminService       Owner/Admins, Rechte, OP-Kräfte, fliegender Teppich
 └─ client/                  → StarterPlayerScripts.Client
    ├─ Main.client.luau      Baut UI + startet Controller
@@ -246,6 +248,7 @@ Alle Zahlen stehen in `src/shared/Config.luau` – du musst keinen anderen Code 
 - `Config.Managers` – Einstellkosten, Seltenheiten (Chance, Boni, Dauer, Abklingzeit), Fähigkeiten
 - `Config.Pets` / `Config.Eggs` – Pets (Icon, Seltenheit, Multiplikator), Eier (Preis, Währung, Chancen in % – müssen 100 ergeben), Slots
 - `Config.Trading` – Ticketpreis, max. Pets pro Seite, Countdown
+- `Config.Leaderboards` – Aktualisierung, Plätze, Position der Tafeln, `MoneyStat` („TotalCash“ = insgesamt verdient, „Cash“ = Kontostand), `StoreVersion` (ändern = zurücksetzen)
 - `Config.Afk` – Intervall, Gems und Einkommen pro Intervall, Größe der Zone
 - `Config.Rebirth` – Mindestverdienst, Punkte-Formel, Multiplikator pro Punkt
 - `Config.Offline` – Obergrenze, Effizienz, x2-Preis

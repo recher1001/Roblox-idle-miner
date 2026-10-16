@@ -519,6 +519,22 @@ Config.Sprint = {
 -- Gems & Belohnungen
 ----------------------------------------------------------------------
 ----------------------------------------------------------------------
+-- Bestenlisten (große Tafeln auf dem Platz, serverübergreifend über
+-- OrderedDataStores). Werte werden logarithmisch gespeichert, damit auch
+-- riesige BigNums (1e300+) in eine Ganzzahl passen.
+----------------------------------------------------------------------
+Config.Leaderboards = {
+	StoreVersion = "v1", -- ändern = Bestenlisten zurücksetzen
+	UpdateInterval = 60, -- Sekunden zwischen Speichern + Neuladen
+	Size = 10, -- Plätze pro Tafel
+	-- "TotalCash" = insgesamt verdient (sinkt nie, auch nicht beim Rebirth)
+	-- "Cash"      = aktueller Kontostand
+	MoneyStat = "TotalCash",
+	MoneyOffset = Vector3.new(-80, 0, 138), -- relativ zur Mitte der Welt
+	IncomeOffset = Vector3.new(80, 0, 138),
+}
+
+----------------------------------------------------------------------
 -- AFK-Zone (Platte hinter dem Brunnen): wer drinsteht, bekommt pro
 -- Intervall Gems + das Offline-Einkommen seiner Minen für diese Zeit
 ----------------------------------------------------------------------

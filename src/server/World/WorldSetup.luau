@@ -697,6 +697,46 @@ end
 WorldSetup.ShopStallOffset = Vector3.new(-44, 0, 112)
 WorldSetup.EggStallOffset = Vector3.new(44, 0, 112)
 WorldSetup.AfkZoneOffset = Vector3.new(0, 0, 208)
+-- Tafeln der Bestenlisten (der LeaderboardService beschriftet sie)
+WorldSetup.LeaderboardBoards = {} :: { [string]: BasePart }
+
+--- Große Tafel mit Pfosten und Neon-Rahmen. Vorderseite zeigt nach -Z.
+local function buildLeaderboard(parent: Instance, id: string, position: Vector3, color: Color3)
+	local model = Instance.new("Model")
+	model.Name = "Leaderboard_" .. id
+	model.Parent = parent
+	local width, height = 18, 24
+	local bottom = 3
+	for _, x in { -width / 2 - 0.6, width / 2 + 0.6 } do
+		MineBuilder.Part({
+			Name = "Post",
+			Size = Vector3.new(1.4, bottom + height + 1, 1.4),
+			CFrame = CFrame.new(position + Vector3.new(x, (bottom + height + 1) / 2, 0)),
+			Color = Color3.fromRGB(60, 40, 120),
+			Material = Enum.Material.SmoothPlastic,
+			Parent = model,
+		})
+	end
+	local frame = MineBuilder.Part({
+		Name = "Frame",
+		Size = Vector3.new(width + 1.2, height + 1.2, 1),
+		CFrame = CFrame.new(position + Vector3.new(0, bottom + height / 2, 0.3)),
+		Color = color,
+		Material = Enum.Material.Neon,
+		Parent = model,
+	})
+	light(frame, color, 26, 1.2)
+	local board = MineBuilder.Part({
+		Name = "Board",
+		Size = Vector3.new(width, height, 1),
+		CFrame = CFrame.new(position + Vector3.new(0, bottom + height / 2, 0)),
+		Color = Color3.fromRGB(40, 22, 110),
+		Material = Enum.Material.SmoothPlastic,
+		Parent = model,
+	})
+	WorldSetup.LeaderboardBoards[id] = board
+end
+
 -- Wird von decorate() gesetzt, der AfkService prüft damit die Position
 WorldSetup.AfkZone = nil :: { Center: Vector3, Radius: number }?
 
@@ -789,6 +829,10 @@ function WorldSetup.decorate(world: Instance, centerX: number, width: number)
 	buildShopStall(deco, CFrame.new(eggStallPos), EGG_STYLE)
 	local afkPos = Vector3.new(centerX, 0, 0) + WorldSetup.AfkZoneOffset
 	buildAfkZone(deco, afkPos)
+	local moneyBoardPos = Vector3.new(centerX, 0, 0) + Config.Leaderboards.MoneyOffset
+	local incomeBoardPos = Vector3.new(centerX, 0, 0) + Config.Leaderboards.IncomeOffset
+	buildLeaderboard(deco, "Money", moneyBoardPos, Color3.fromRGB(255, 200, 0))
+	buildLeaderboard(deco, "Income", incomeBoardPos, Color3.fromRGB(0, 226, 255))
 
 	-- Wimpelketten über dem Gehweg
 	local half = width / 2
@@ -814,6 +858,8 @@ function WorldSetup.decorate(world: Instance, centerX: number, width: number)
 			local nearStall = (p - stallPos).Magnitude < 20
 				or (p - eggStallPos).Magnitude < 20
 				or (p - afkPos).Magnitude < Config.Afk.Radius + 12
+				or (p - moneyBoardPos).Magnitude < 22
+				or (p - incomeBoardPos).Magnitude < 22
 			if not nearStall and ((p - plaza).Magnitude > 40 and math.abs(p.X - centerX) > 26 or p.Z > 175) then
 				return p
 			end
