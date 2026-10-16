@@ -260,11 +260,9 @@ local function buildPowersTab()
 			LayoutOrder = nextOrder(),
 			Parent = list,
 		}, if has then Theme.Colors.Green else nil)
-		Util.label({
-			Size = UDim2.fromOffset(70, 84),
-			Position = UDim2.fromOffset(10, 0),
-			Text = def.Icon,
-			TextSize = 40,
+		Components.icon(def.Icon, 62, if has then Theme.Colors.Green else Theme.Colors.Purple, {
+			Position = UDim2.new(0, 12, 0.5, 0),
+			AnchorPoint = Vector2.new(0, 0.5),
 			Parent = card,
 		})
 		local name = Util.label({

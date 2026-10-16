@@ -308,7 +308,7 @@ local function playReveal(m: Types.ManagerData)
 			Parent = card,
 		}, { Util.round(), Util.stroke(Color3.new(1, 1, 1), 3, 0.2) })
 	else
-		Util.label({
+		Util.emoji({
 			Size = UDim2.new(1, 0, 0, 120),
 			Position = UDim2.fromOffset(0, 24),
 			Text = "👔",

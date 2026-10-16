@@ -83,11 +83,9 @@ local function buildTopBar(parent: Frame)
 	local cash = Components.pill({ Size = UDim2.fromOffset(330, 76), LayoutOrder = 2, Parent = bar }, Theme.Colors.Gold)
 	Components.rainbowBorder(cash, 4)
 	cashScale.Parent = cash
-	Util.label({
-		Size = UDim2.fromOffset(60, 76),
-		Position = UDim2.fromOffset(8, 0),
-		Text = "💰",
-		TextSize = 40,
+	Components.icon("💰", 54, Theme.Colors.Gold, {
+		Position = UDim2.new(0, 10, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
 		Parent = cash,
 	})
 	cashLabel = Util.label({

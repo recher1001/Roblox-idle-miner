@@ -61,7 +61,7 @@ function Components.button(props: ButtonProps): Button
 		TextWrapped = true,
 		ZIndex = (props.ZIndex or 1) + 1,
 	})
-	Util.textStroke(1.5).Parent = label
+	Util.textStroke(2.2).Parent = label
 
 	local button: TextButton = Util.new("TextButton", {
 		Name = "Button",
@@ -408,6 +408,51 @@ function Components.pill(props: { [string]: any }, accent: Color3): Frame
 		Util.gradient(Theme.Colors.PillTop, Theme.Colors.PillBottom),
 		Util.stroke(accent, 3),
 	})
+end
+
+--- Sticker-Icon im Cartoon-Stil: abgerundetes Quadrat, dicker dunkler Rand,
+--- kräftiger Farbverlauf, Glanzlicht oben und ein umrandetes Emoji darin.
+function Components.icon(emoji: string, size: number, color: Color3?, props: { [string]: any }?): Frame
+	local c = color or Theme.Colors.Gold
+	local defaults: { [string]: any } = {
+		Name = "Icon",
+		Size = UDim2.fromOffset(size, size),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+	}
+	if props then
+		for k, v in props do
+			defaults[k] = v
+		end
+	end
+	local tile: Frame = Util.new("Frame", defaults, {
+		Util.new("UICorner", { CornerRadius = UDim.new(0.3, 0) }),
+		Util.gradient(Theme.lighten(c, 0.35), Theme.darken(c, 0.12)),
+		Util.new("UIStroke", {
+			Color = Color3.fromRGB(26, 14, 10),
+			Thickness = math.max(2.5, size / 22),
+			LineJoinMode = Enum.LineJoinMode.Round,
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		}),
+	})
+	-- Glanzlicht (obere Hälfte)
+	Util.new("Frame", {
+		Name = "Gloss",
+		Size = UDim2.fromScale(0.82, 0.36),
+		Position = UDim2.fromScale(0.09, 0.07),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.65,
+		ZIndex = tile.ZIndex,
+		Parent = tile,
+	}, { Util.new("UICorner", { CornerRadius = UDim.new(0.5, 0) }) })
+	Util.emoji({
+		Name = "Emoji",
+		Size = UDim2.fromScale(1, 1),
+		Text = emoji,
+		TextSize = math.floor(size * 0.58),
+		ZIndex = tile.ZIndex + 1,
+		Parent = tile,
+	})
+	return tile
 end
 
 --- Macht den Rand eines Elements zu einem animierten Regenbogen
