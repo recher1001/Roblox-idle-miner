@@ -436,6 +436,210 @@ local function buildBunting(parent: Instance, fromX: number, toX: number, z: num
 	end
 end
 
+----------------------------------------------------------------------
+-- Shop-Stand (Marktstand wie in Grow a Garden) mit Händler-NPC.
+-- Vorderseite zeigt nach -Z (zu den Minen/zum Gehweg).
+-- Der ProximityPrompt öffnet auf dem Client das Shop-Menü.
+----------------------------------------------------------------------
+local WOOD_DARK = Color3.fromRGB(86, 58, 40)
+local WOOD = Color3.fromRGB(116, 76, 48)
+local SKIN = Color3.fromRGB(234, 184, 146)
+local DENIM = Color3.fromRGB(52, 98, 178)
+
+local function stallPart(
+	parent: Instance,
+	name: string,
+	size: Vector3,
+	cf: CFrame,
+	color: Color3,
+	material: Enum.Material?
+): Part
+	return MineBuilder.Part({
+		Name = name,
+		Size = size,
+		CFrame = cf,
+		Color = color,
+		Material = material or Enum.Material.WoodPlanks,
+		Parent = parent,
+	})
+end
+
+--- Händler im klassischen Roblox-Look: Latzhose, Cowboyhut, Smiley-Gesicht
+local function buildShopkeeper(parent: Instance, feet: CFrame): Model
+	local npc = Instance.new("Model")
+	npc.Name = "Shopkeeper"
+	npc.Parent = parent
+	local function part(name: string, size: Vector3, offset: Vector3, color: Color3, mat: Enum.Material?): Part
+		local p = stallPart(npc, name, size, feet * CFrame.new(offset), color, mat or Enum.Material.SmoothPlastic)
+		p.CanCollide = false
+		return p
+	end
+	part("LeftLeg", Vector3.new(1, 2, 1), Vector3.new(-0.5, 1, 0), DENIM)
+	part("RightLeg", Vector3.new(1, 2, 1), Vector3.new(0.5, 1, 0), DENIM)
+	part("Torso", Vector3.new(2, 2, 1), Vector3.new(0, 3, 0), SKIN)
+	-- Latzhose (Latz + Träger)
+	part("Bib", Vector3.new(1.4, 1.3, 1.05), Vector3.new(0, 2.65, 0), DENIM)
+	part("StrapL", Vector3.new(0.3, 0.9, 1.05), Vector3.new(-0.55, 3.55, 0), DENIM)
+	part("StrapR", Vector3.new(0.3, 0.9, 1.05), Vector3.new(0.55, 3.55, 0), DENIM)
+	part("Belt", Vector3.new(2.02, 0.5, 1.03), Vector3.new(0, 2.15, 0), DENIM)
+	part("LeftArm", Vector3.new(1, 2, 1), Vector3.new(-1.5, 3, 0), SKIN)
+	part("RightArm", Vector3.new(1, 2, 1), Vector3.new(1.5, 3, 0), SKIN)
+	local head = part("Head", Vector3.new(2, 1, 1), Vector3.new(0, 4.5, 0), SKIN)
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Head
+	mesh.Scale = Vector3.new(1.25, 1.25, 1.25)
+	mesh.Parent = head
+	local face = Instance.new("Decal")
+	face.Name = "face"
+	face.Face = Enum.NormalId.Front
+	face.Texture = "rbxasset://textures/face.png"
+	face.Parent = head
+	-- Cowboyhut
+	local hat = Color3.fromRGB(122, 82, 46)
+	local brim = part("HatBrim", Vector3.new(0.2, 3.6, 3.6), Vector3.new(0, 5.1, 0), hat)
+	brim.Shape = Enum.PartType.Cylinder
+	brim.CFrame = feet * CFrame.new(0, 5.1, 0) * CFrame.Angles(0, 0, math.pi / 2)
+	local crown = part("HatCrown", Vector3.new(1.2, 1.8, 1.8), Vector3.new(0, 5.75, 0), hat)
+	crown.Shape = Enum.PartType.Cylinder
+	crown.CFrame = feet * CFrame.new(0, 5.75, 0) * CFrame.Angles(0, 0, math.pi / 2)
+	local band = part("HatBand", Vector3.new(0.3, 1.85, 1.85), Vector3.new(0, 5.35, 0), Color3.fromRGB(70, 44, 26))
+	band.Shape = Enum.PartType.Cylinder
+	band.CFrame = feet * CFrame.new(0, 5.35, 0) * CFrame.Angles(0, 0, math.pi / 2)
+	npc.PrimaryPart = head
+	return npc
+end
+
+local function buildShopStall(parent: Instance, origin: CFrame)
+	local stall = Instance.new("Model")
+	stall.Name = "ShopStall"
+	stall.Parent = parent
+	local function at(x: number, y: number, z: number): CFrame
+		return origin * CFrame.new(x, y, z)
+	end
+	-- Pfosten (hinten höher -> schräges Dach)
+	for _, x in { -7.5, 7.5 } do
+		stallPart(stall, "Post", Vector3.new(1, 9.4, 1), at(x, 4.7, -3.6), WOOD_DARK, Enum.Material.Wood)
+		stallPart(stall, "Post", Vector3.new(1, 11.4, 1), at(x, 5.7, 3.6), WOOD_DARK, Enum.Material.Wood)
+	end
+	-- Theke vorne: zwei Bretter + graue Ablage
+	stallPart(stall, "Counter", Vector3.new(15, 1.3, 0.7), at(0, 1.2, -3.6), WOOD)
+	stallPart(stall, "Counter", Vector3.new(15, 1.3, 0.7), at(0, 2.75, -3.6), WOOD)
+	stallPart(
+		stall,
+		"CounterTop",
+		Vector3.new(16.2, 0.4, 1.6),
+		at(0, 3.6, -3.4),
+		Color3.fromRGB(96, 96, 108),
+		Enum.Material.SmoothPlastic
+	)
+	-- Ware auf der Theke: Edelsteine, Geldsack
+	local gemColors = {
+		Color3.fromRGB(0, 226, 255),
+		Color3.fromRGB(255, 60, 170),
+		Color3.fromRGB(150, 255, 0),
+		Color3.fromRGB(255, 200, 0),
+	}
+	for i, c in gemColors do
+		local gem = stallPart(
+			stall,
+			"Gem",
+			Vector3.new(0.9, 0.9, 0.9),
+			at(-5.8 + i * 1.1, 4.3, -3.3) * CFrame.Angles(0.6, i, 0.4),
+			c,
+			Enum.Material.Neon
+		)
+		gem.CanCollide = false
+	end
+	local bag = stallPart(
+		stall,
+		"MoneyBag",
+		Vector3.new(1.6, 1.6, 1.6),
+		at(4.6, 4.6, -3.3),
+		Color3.fromRGB(200, 160, 90),
+		Enum.Material.Fabric
+	)
+	bag.Shape = Enum.PartType.Ball
+	-- Dach: blau-weiße Streifen, hinten hoch, vorne tief
+	local slope = math.atan(2 / 8.6)
+	local stripes = 8
+	for i = 0, stripes - 1 do
+		local x = -8 + 1 + i * 2
+		stallPart(
+			stall,
+			"Awning",
+			Vector3.new(2, 0.45, 9.4),
+			at(x, 10.4, 0) * CFrame.Angles(-slope, 0, 0),
+			if i % 2 == 0 then Color3.fromRGB(30, 130, 255) else Color3.fromRGB(245, 248, 255),
+			Enum.Material.SmoothPlastic
+		)
+	end
+	stallPart(
+		stall,
+		"AwningTrim",
+		Vector3.new(16.4, 0.7, 0.5),
+		at(0, 9.1, -4.6),
+		Color3.fromRGB(30, 130, 255),
+		Enum.Material.SmoothPlastic
+	)
+
+	-- Schild "SHOP" daneben (wie im Referenzbild)
+	stallPart(stall, "SignPost", Vector3.new(1, 4.5, 1), at(-11.5, 2.25, -3.6), WOOD_DARK, Enum.Material.Wood)
+	local board =
+		stallPart(stall, "SignBoard", Vector3.new(6.5, 4.2, 0.6), at(-11.5, 5.6, -3.6), WOOD, Enum.Material.WoodPlanks)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.CanvasSize = Vector2.new(320, 210)
+	gui.LightInfluence = 0.4
+	gui.Parent = board
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(0.92, 0.9)
+	label.Position = UDim2.fromScale(0.04, 0.05)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.Text = "SHOP"
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextStrokeTransparency = 0
+	label.TextStrokeColor3 = Color3.fromRGB(30, 18, 12)
+	label.Parent = gui
+
+	-- Händler hinter der Theke
+	local npc = buildShopkeeper(stall, at(0, 0, -1.4))
+	local head = npc:FindFirstChild("Head") :: BasePart
+	local tag = Instance.new("BillboardGui")
+	tag.Size = UDim2.fromScale(8, 2.4)
+	tag.StudsOffset = Vector3.new(0, 3.4, 0)
+	tag.MaxDistance = 90
+	tag.LightInfluence = 0
+	tag.Adornee = head
+	tag.Parent = head
+	local tagLabel = Instance.new("TextLabel")
+	tagLabel.Size = UDim2.fromScale(1, 1)
+	tagLabel.BackgroundTransparency = 1
+	tagLabel.Font = Enum.Font.FredokaOne
+	tagLabel.TextScaled = true
+	tagLabel.Text = "🛒 Händler Hans"
+	tagLabel.TextColor3 = Color3.fromRGB(255, 220, 60)
+	tagLabel.TextStrokeTransparency = 0
+	tagLabel.Parent = tag
+
+	-- Prompt an der Theke: öffnet das Shop-Menü
+	local promptPart = stallPart(stall, "PromptPart", Vector3.new(4, 3, 1), at(0, 3, -4.2), Color3.new(1, 1, 1))
+	promptPart.Transparency = 1
+	promptPart.CanCollide = false
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Shop öffnen"
+	prompt.ObjectText = "Händler Hans"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt:SetAttribute("OpenPanel", "Shop")
+	prompt.Parent = promptPart
+end
+
+WorldSetup.ShopStallOffset = Vector3.new(-44, 0, 112)
+
 function WorldSetup.decorate(world: Instance, centerX: number, width: number)
 	local deco = Instance.new("Folder")
 	deco.Name = "Decoration"
@@ -445,6 +649,8 @@ function WorldSetup.decorate(world: Instance, centerX: number, width: number)
 	local plaza = Vector3.new(centerX, 0, 128)
 	buildFountain(deco, plaza)
 	buildSign(deco, Vector3.new(centerX, 22, 160))
+	local stallPos = Vector3.new(centerX, 0, 0) + WorldSetup.ShopStallOffset
+	buildShopStall(deco, CFrame.new(stallPos))
 
 	-- Wimpelketten über dem Gehweg
 	local half = width / 2
@@ -467,7 +673,8 @@ function WorldSetup.decorate(world: Instance, centerX: number, width: number)
 	local function freeSpot(): Vector3?
 		for _ = 1, 10 do
 			local p = Vector3.new(rng:NextNumber(centerX - half - 80, centerX + half + 80), 0, rng:NextNumber(104, 235))
-			if (p - plaza).Magnitude > 40 and math.abs(p.X - centerX) > 26 or p.Z > 175 then
+			local nearStall = (p - stallPos).Magnitude < 20
+			if not nearStall and ((p - plaza).Magnitude > 40 and math.abs(p.X - centerX) > 26 or p.Z > 175) then
 				return p
 			end
 		end

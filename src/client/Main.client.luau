@@ -28,6 +28,7 @@ local Controllers = Client.Controllers
 local CameraController = require(Controllers.CameraController)
 local CarpetController = require(Controllers.CarpetController)
 local SprintController = require(Controllers.SprintController)
+local NpcController = require(Controllers.NpcController)
 local Effects = require(Controllers.Effects)
 local MineVisuals = require(Controllers.MineVisuals)
 local StationBadges = require(Controllers.StationBadges)
@@ -48,6 +49,7 @@ StationBadges.start()
 CameraController.start()
 CarpetController.start()
 SprintController.start()
+NpcController.start()
 MineVisuals.start()
 
 -- Falls der erste Sync vor dem Verbinden kam: Zustand neu anfordern
